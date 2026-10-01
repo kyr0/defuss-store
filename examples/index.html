@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>defuss-store · persistent preferences</title>
+<style>
+  :root { color-scheme: light dark; font: 17px/1.6 system-ui,sans-serif; }
+  body { max-width: 720px; margin: 10vh auto; padding: 24px; }
+  h1 { font-size: 2.4rem; line-height: 1.1; letter-spacing: -.05em; }
+  .eyebrow { font: 13px ui-monospace,monospace; color: #888; }
+  button,select { font: inherit; padding: .5em .9em; border: 1px solid #8886; border-radius: 8px; }
+  button { cursor: pointer; }
+  label { display: block; margin: 1.5em 0; }
+  output { font: 3rem ui-monospace,monospace; display: block; margin: .7em 0; }
+  pre { border: 1px solid #8885; border-radius: 10px; padding: 18px; overflow: auto; }
+  #status { font-size: .85rem; color: #888; }
+</style>
+<body>
+<p class="eyebrow">defuss-store / browser example</p>
+<h1>State that stays.</h1>
+<p>Change the counter or theme, then reload. This page imports the dependency-free browser ESM bundle.</p>
+<output id="counter" aria-live="polite">0</output>
+<button id="increment">Increment</button> <button id="reset">Reset</button>
+<label>Color scheme <select id="theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+<pre id="snapshot"></pre><p id="status">Ready</p>
+<script type="module">
+import { createStore, computed, createWebStorage, createMemoryStorage, attachPersistence } from '../dist/browser.js';
+const defaults = { count: 0, theme: 'system' };
+const store = createStore(defaults);
+const status = document.querySelector('#status');
+const storage = createWebStorage('local', {
+  fallback: createMemoryStorage(),
+  onUnavailable: () => { status.textContent = 'Browser storage unavailable; using memory for this page.'; },
+});
+const persistence = attachPersistence(store, {
+  key: 'defuss-store:example', storage, version: 1,
+  validate: value => value !== null && typeof value === 'object' && Number.isSafeInteger(value.count)
+    && ['system', 'light', 'dark'].includes(value.theme),
+  onError: error => { status.textContent = `Persistence ${error.operation} failed; in-memory controls remain available.`; },
+});
+const countLabel = computed(store, value => String(value.count));
+countLabel.subscribe(value => { document.querySelector('#counter').textContent = value; }, { immediate: true });
+store.subscribe(value => {
+  document.querySelector('#snapshot').textContent = JSON.stringify(value, null, 2);
+  document.querySelector('#theme').value = value.theme;
+  document.documentElement.style.colorScheme = value.theme === 'system' ? 'light dark' : value.theme;
+}, { immediate: true });
+document.querySelector('#increment').onclick = () => store.update(value => ({ ...value, count: value.count + 1 }));
+document.querySelector('#reset').onclick = () => store.reset();
+document.querySelector('#theme').onchange = event => store.set('theme', event.target.value);
+// pagehide can enter the back-forward cache; only dispose on a final departure.
+addEventListener('pagehide', event => { if (!event.persisted) { persistence.destroy(); countLabel.destroy(); store.destroy(); } });
+</script>
+</body></html>

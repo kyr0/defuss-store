@@ -1,0 +1,86 @@
+{
+  "name": "defuss-store",
+  "version": "0.1.0",
+  "description": "Small synchronous observable stores with selectors, computed state, explicit Web Storage persistence and optional DOM bindings.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Aron Homberg <info@aron-homberg.de>",
+  "keywords": [
+    "defuss",
+    "store",
+    "state",
+    "observable",
+    "computed",
+    "localstorage",
+    "typescript",
+    "isomorphic"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./storage": {
+      "types": "./dist/storage/index.d.ts",
+      "import": "./dist/storage/index.js"
+    },
+    "./persist": {
+      "types": "./dist/persist/index.d.ts",
+      "import": "./dist/persist/index.js"
+    },
+    "./bind": {
+      "types": "./dist/bind/index.d.ts",
+      "import": "./dist/bind/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "ARCH.md",
+    "RELEASE.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "clean": "node --experimental-strip-types scripts/clean.ts",
+    "typecheck": "tsc --noEmit && tsc -p tests/types/tsconfig.json",
+    "lint": "oxlint src tests scripts",
+    "build": "node --experimental-strip-types scripts/clean.ts dist && pkgroll --packagejson=*.js --sourcemap && tsc -p tsconfig.build.json && node --experimental-strip-types scripts/bundle.ts && node --experimental-strip-types scripts/stats.ts",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage --reporter=default --reporter=json --outputFile=artifacts/unit-results.json",
+    "test:browser": "playwright test",
+    "e2e": "npm run test:browser",
+    "bench": "vitest bench --run",
+    "test:package": "node --experimental-strip-types scripts/package-tests.ts",
+    "verify": "node --experimental-strip-types scripts/verify.ts",
+    "check": "npm run lint && npm run typecheck && npm run build && npm run test:coverage && npm run test:browser && npm run test:package && npm run verify",
+    "prepublishOnly": "npm run check",
+    "dev": "node --experimental-strip-types scripts/serve.ts",
+    "setup": "npm ci && playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "22.19.15",
+    "@vitest/coverage-v8": "5.0.2",
+    "esbuild": "0.27.4",
+    "oxlint": "1.81.0",
+    "pkgroll": "2.28.1",
+    "typescript": "5.9.3",
+    "vitest": "5.0.2"
+  }
+}

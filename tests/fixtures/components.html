@@ -1,0 +1,60 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Real defuss-shadcn integration</title>
+<div class="tabs"><div id="tabs" role="tablist" aria-label="Settings">
+  <button class="tab-trigger" id="account" role="tab" aria-selected="true" aria-controls="account-panel">Account</button>
+  <button class="tab-trigger" id="billing" role="tab" aria-selected="false" aria-controls="billing-panel" tabindex="-1">Billing</button>
+  <button class="tab-trigger" id="locked" role="tab" aria-selected="false" aria-controls="locked-panel" disabled tabindex="-1">Locked</button>
+</div><div id="account-panel" role="tabpanel">Account settings</div><div id="billing-panel" role="tabpanel" hidden>Billing settings</div><div id="locked-panel" hidden>Locked</div></div>
+<div class="tabs"><div id="other-tabs" role="tablist" aria-label="Other">
+  <button class="tab-trigger" id="other-a" role="tab" aria-selected="true" aria-controls="other-panel-a">Other A</button>
+  <button class="tab-trigger" id="other-b" role="tab" aria-selected="false" aria-controls="other-panel-b">Other B</button>
+</div><div id="other-panel-a">A</div><div id="other-panel-b" hidden>B</div></div>
+<nav id="pager" class="pagination" data-active-page="1" data-min-page="1" data-max-page="5" data-page-display-count="5" aria-label="Pages">
+  <ul class="pagination-list"><li><a href="#" class="pagination-prev">Previous</a></li><li><a href="#" class="pagination-next">Next</a></li></ul>
+</nav>
+<button data-sidebar-trigger="sidebar">Toggle sidebar</button>
+<div class="sidebar-layout" style="width:960px"><aside id="sidebar" class="app-sidebar" data-state="expanded">Navigation</aside></div>
+<script type="module">
+import { createStore } from '/dist/index.js';
+import { createWebStorage } from '/dist/storage/index.js';
+import { attachPersistence } from '/dist/persist/index.js';
+import { bindState } from '/dist/bind/index.js';
+await import('./vendor/defuss-shadcn/core.js');
+await import('./vendor/defuss-shadcn/tabs.js');
+await import('./vendor/defuss-shadcn/pagination.js');
+await import('./vendor/defuss-shadcn/sidebar.js');
+const store = createStore({ tabId: 'account', page: 1, collapsed: false });
+const errors = [];
+const persistence = attachPersistence(store, {
+  key: 'fixture:components', storage: createWebStorage('local'), version: 1,
+  validate: value => value !== null && typeof value === 'object' && typeof value.tabId === 'string' && Number.isInteger(value.page) && typeof value.collapsed === 'boolean',
+  onError: error => errors.push(error.operation),
+});
+let notifications = 0;
+store.subscribe(() => notifications++);
+const abort = new AbortController();
+const tabs = bindState(document.querySelector('#tabs'), store, {
+  select: value => value.tabId,
+  toState: id => ({ name: 'active', config: { id } }),
+  fromState: (state, current) => ({ ...current, tabId: state.config.id }),
+  signal: abort.signal,
+});
+const pager = bindState(document.querySelector('#pager'), store, {
+  select: value => value.page,
+  toState: page => ({ name: 'default', config: { page } }),
+  fromState: (state, current) => ({ ...current, page: state.config.activePage }),
+  events: ['pagination-change'], signal: abort.signal,
+});
+const sidebar = bindState(document.querySelector('#sidebar'), store, {
+  select: value => value.collapsed,
+  toState: collapsed => ({ name: collapsed ? 'collapsed' : 'default', config: {} }),
+  fromState: (state, current) => ({ ...current, collapsed: state.name === 'collapsed' }),
+  signal: abort.signal,
+});
+const other = createStore('other-a');
+bindState(document.querySelector('#other-tabs'), other, {
+  select: value => value,
+  toState: id => ({ name: 'active', config: { id } }),
+  fromState: state => state.config.id,
+});
+globalThis.fixture = { store, other, persistence, tabs, pager, sidebar, abort, errors, get notifications() { return notifications; } };
+</script></html>

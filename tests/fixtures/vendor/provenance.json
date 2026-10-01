@@ -1,0 +1,26 @@
+{
+  "repository": "https://github.com/kyr0/defuss-shadcn",
+  "commit": "e343f6aaed5ebb1b65ffec8b5d92286ed1340194",
+  "files": [
+    {
+      "upstream": "dist/components/core.js",
+      "fixture": "tests/fixtures/vendor/defuss-shadcn/core.js",
+      "sha256": "ec6621069f269e80ac5906dc931e115f27f73c2c339b9c16763bd2c189f40152"
+    },
+    {
+      "upstream": "dist/components/tabs/tabs.js",
+      "fixture": "tests/fixtures/vendor/defuss-shadcn/tabs.js",
+      "sha256": "7ff0bc2074d7785c215f94a556532d7350b891dd894a9838e443d55a46a22658"
+    },
+    {
+      "upstream": "dist/components/pagination/pagination.js",
+      "fixture": "tests/fixtures/vendor/defuss-shadcn/pagination.js",
+      "sha256": "c9b19f444b9e73b00a929be841208a4506c1580e8093ed6cb7da26569b220023"
+    },
+    {
+      "upstream": "dist/components/sidebar/sidebar.js",
+      "fixture": "tests/fixtures/vendor/defuss-shadcn/sidebar.js",
+      "sha256": "bd724b752b47622da142779b8dce3b3d489d1962e449b44ad24dd044025ff4d3"
+    }
+  ]
+}

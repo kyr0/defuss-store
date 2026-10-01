@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "NodeNext", "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM"], "strict": true, "noEmit": true, "skipLibCheck": false,
+    "baseUrl": "../..",
+    "paths": {
+      "defuss-store": ["src/index.ts"], "defuss-store/storage": ["src/storage/index.ts"],
+      "defuss-store/persist": ["src/persist/index.ts"], "defuss-store/bind": ["src/bind/index.ts"]
+    }
+  },
+  "include": ["*.ts"]
+}

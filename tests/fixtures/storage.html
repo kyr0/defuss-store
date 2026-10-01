@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Storage integration fixture</title>
+<button id="increment">Increment</button><output id="value">0</output>
+<script type="module">
+import { createStore } from '/dist/index.js';
+import { createWebStorage } from '/dist/storage/index.js';
+import { attachPersistence } from '/dist/persist/index.js';
+const area = new URL(location.href).searchParams.get('area') === 'session' ? 'session' : 'local';
+const native = createWebStorage(area);
+let writes = 0;
+const errors = [];
+const storage = { ...native, setItem(key, value) { writes++; native.setItem(key, value); } };
+const store = createStore(0);
+const persistence = attachPersistence(store, {
+  key: 'fixture:counter', storage, version: 1, sync: true,
+  validate: value => typeof value === 'number' && Number.isFinite(value),
+  onError: error => errors.push(error.operation),
+});
+store.subscribe(value => document.querySelector('#value').textContent = String(value), { immediate: true });
+document.querySelector('#increment').onclick = () => store.update(value => value + 1);
+globalThis.fixture = { store, persistence, errors, get writes() { return writes; } };
+</script></html>
