@@ -19,7 +19,7 @@ for (const mapping of Object.values(pkg.exports)) {
   for (const path of typeof mapping === 'string' ? [mapping] : Object.values(mapping)) await access(path);
 }
 // Docs and license ship in the tarball; the lockfile pins the reproducible development install.
-for (const file of ['README.md', 'ARCH.md', 'RELEASE.md', 'CHANGELOG.md', 'LICENSE', 'package-lock.json']) await access(file);
+for (const file of ['README.md', 'ARCH.md', 'CHANGELOG.md', 'LICENSE', 'package-lock.json']) await access(file);
 const provenance = JSON.parse(await readFile('tests/fixtures/vendor/provenance.json', 'utf8')) as { files: { fixture: string; sha256: string }[] };
 // The browser suite validates against pinned upstream defuss-shadcn code; any local fixture edit must fail the gate.
 for (const fixture of provenance.files) {

@@ -2,7 +2,9 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/e2e', timeout: 20000, expect: { timeout: 5000 },
   fullyParallel: true, workers: 2, retries: 0,
-  reporter: [['list'], ['json', { outputFile: 'artifacts/browser-results.json' }]],
+  // VERIFIED: the defuss-vae gate fails unless e2e leaves fresh files in output/, so reports go there.
+  outputDir: 'output/test-results',
+  reporter: [['list'], ['json', { outputFile: 'output/browser-results.json' }]],
   use: {
     baseURL: 'http://127.0.0.1:4178', headless: true,
     launchOptions: {

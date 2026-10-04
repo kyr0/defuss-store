@@ -1,4 +1,5 @@
-name: Package checks
+# defuss-vae CI: the same bootstrap and verbs as local development, so CI cannot drift from `make verify`.
+name: verify
 on:
   push:
   pull_request:
@@ -6,25 +7,27 @@ on:
 permissions:
   contents: read
 jobs:
-  check:
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       matrix:
+        # The supported floor (engines: >=22.12) and the current LTS.
         node: [22, 24]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm run check
+      - run: make setup
+      - run: make verify
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: defuss-store-node-${{ matrix.node }}
           path: |
             artifacts/
+            output/
             coverage/coverage-summary.json
             dist/stats.json

@@ -49,7 +49,6 @@
     "dist",
     "README.md",
     "ARCH.md",
-    "RELEASE.md",
     "CHANGELOG.md",
     "LICENSE"
   ],
@@ -59,7 +58,7 @@
   "scripts": {
     "clean": "node --experimental-strip-types scripts/clean.ts",
     "typecheck": "tsc --noEmit && tsc -p tests/types/tsconfig.json",
-    "lint": "oxlint src tests scripts",
+    "lint": "oxlint --deny-warnings src tests scripts",
     "build": "node --experimental-strip-types scripts/clean.ts dist && pkgroll --packagejson=*.js --sourcemap && tsc -p tsconfig.build.json && node --experimental-strip-types scripts/bundle.ts && node --experimental-strip-types scripts/stats.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage --reporter=default --reporter=json --outputFile=artifacts/unit-results.json",

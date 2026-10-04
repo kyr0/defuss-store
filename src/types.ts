@@ -24,6 +24,11 @@ export interface SelectorOptions<S> extends SubscribeOptions {
   equals?: EqualsFn<S>;
 }
 /**
+ * Top-level keys that `get(key)` reads literally. VERIFIED: keys containing path syntax, the empty
+ * key and unsafe segments are parsed as paths at runtime, so they fall through to the untyped overload.
+ */
+type PlainKey<T> = Exclude<Extract<keyof T, string>, '' | `${string}${'.' | '[' | ']'}${string}` | '__proto__' | 'prototype' | 'constructor'>;
+/**
  * Read side of a store. Snapshots are returned by reference; treat them as immutable, in-place
  * mutation is not observed.
  */
@@ -37,8 +42,11 @@ export interface ReadableStore<T> {
   readonly destroyed: boolean;
   /** Current snapshot, by reference. */
   get(): T;
-  /** Typed read of a known top-level key. */
-  get<K extends Extract<keyof T, string>>(key: K): T[K];
+  /**
+   * Typed read of a known top-level key. VERIFIED: keys containing `.`, `[` or `]` are parsed as
+   * paths at runtime (`{ 'a.b': 1 }` reads `undefined`), so they resolve to the untyped overload below.
+   */
+  get<K extends PlainKey<T>>(key: K): T[K];
   /**
    * Dynamic path read such as `'items[0].name'`; returns `unknown` and is deliberately not
    * compile-time schema validation. Own properties only: missing keys, nullish intermediates and
