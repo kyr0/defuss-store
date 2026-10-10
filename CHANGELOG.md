@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- README follows the defuss-multicore layout: TL;DR, a commit-path and a persistence-phase diagram, API and option tables, entry sizes, a scaling table, when to use it, patterns, verification, requirements and a citation. `scripts/verify.ts` checks its sizes, scaling rows, versions and Node badge against `dist/stats.json`, `docs/assets/bench.json` and `package.json`.
 - Docs site in `docs/`, served at store.defuss.org. It has a landing page and a live demo: a form, a chat and sticky notes whose state survives a reload, store devtools fed by `store.subscribe()`, and Get/Set state through the store API. `tests/e2e/docs.spec.ts` covers both pages in Chromium. `scripts/verify.ts` checks the site's sizes, version, bundle copy and code excerpts against the build.
 - Scaling benchmark (`scripts/bench-scaling.ts`, run by `make bench`): time per operation of the built `dist/` as path depth, list length and subscriber count grow. The docs site charts a committed snapshot, and `scripts/verify.ts` checks that the snapshot still shows the growth the site describes. The site also shows unit-test coverage, checked against the coverage report.
 - `npm run build` copies `dist/browser.js` and its map into `docs/assets/defuss-store/`. The dev server serves a directory's `index.html`, and local browser test runs reuse a running dev server instead of failing on its port. Lint covers `docs/`.

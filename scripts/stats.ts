@@ -1,8 +1,9 @@
 /**
  * Measures per-entry build sizes and writes dist/stats.json, the last step of
- * `npm run build`. README points readers to this file instead of advertising guessed
- * sizes. artifactBytes is the shipped dist file as-is, which may reference shared
- * pkgroll chunks; bundledMinifiedBytes and bundledGzipBytes bundle each entry alone,
+ * `npm run build`. VERIFIED: README.md and the docs site quote these numbers, and
+ * scripts/verify.ts fails when a quote differs from this file. artifactBytes is the
+ * shipped dist file as-is, which may reference shared pkgroll chunks;
+ * bundledMinifiedBytes and bundledGzipBytes bundle each entry alone,
  * so shared chunks count toward that entry's real standalone cost.
  */
 import { readFile, writeFile } from 'node:fs/promises';
