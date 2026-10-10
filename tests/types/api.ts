@@ -21,6 +21,10 @@ state.set({ count: 'wrong', label: 'counter' });
 state.update(() => 'wrong');
 // @ts-expect-error Unknown paths are not falsely typed.
 const unsafe: number = state.get('nested.unknown');
+const dotted = createStore({ 'a.b': 1, plain: 2 });
+const plain: number = dotted.get('plain');
+// @ts-expect-error A key with path syntax is read as a path at runtime (a → b), not as the literal key.
+const misread: number = dotted.get('a.b');
 // @ts-expect-error Backends are synchronous.
 const asyncBackend: StorageBackend = { getItem: async () => null, setItem() {}, removeItem() {} };
 const numeric = createStore<number | null>(1);
@@ -33,4 +37,4 @@ const binding = bindState(element, state, {
   fromState: (component, current) => ({ ...current, count: Number(component.config.count) }),
 });
 binding.pull(); binding.push(); binding();
-void [number, output, unsafe, asyncBackend];
+void [number, output, unsafe, plain, misread, asyncBackend];

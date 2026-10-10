@@ -2,19 +2,21 @@
  * Static file server over the repo root, bound to loopback. `npm run dev` serves the
  * browser example (/ maps to examples/index.html); Playwright's webServer config runs
  * the same server so e2e specs load tests/fixtures and dist over HTTP. PORT overrides
- * the default 4178. Responses are no-store: tests must never see a cached build.
+ * the default 4178. A directory URL serves its index.html, as GitHub Pages does for docs/ (VERIFIED: tests/e2e/docs.spec.ts
+ * loads /docs/ and /docs/demo/ through it). Responses are no-store:
+ * tests must never see a cached build.
  */
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
-const types: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.map': 'application/json' };
+const types: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.map': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml' };
 const server = createServer(async (request, response) => {
   try {
     // A dummy base makes the relative request target parseable; decoding may throw → 404 below.
     const pathname = decodeURIComponent(new URL(request.url ?? '/', 'http://localhost').pathname);
-    const file = resolve(root, `.${pathname === '/' ? '/examples/index.html' : pathname}`);
+    const file = resolve(root, `.${pathname === '/' ? '/examples/index.html' : pathname.endsWith('/') ? `${pathname}index.html` : pathname}`);
     // Compare against root plus a separator, or a sibling like "<root>-evil" would pass the prefix check.
     if (!file.startsWith(root.endsWith(sep) ? root : root + sep)) { response.writeHead(403).end(); return; }
     if (!(await stat(file)).isFile()) { response.writeHead(404).end(); return; }

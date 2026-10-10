@@ -5,6 +5,6 @@
  * not the cwd; `force` keeps the run idempotent when directories are already absent.
  */
 import { rm } from 'node:fs/promises';
-for (const target of process.argv[2] === 'dist' ? ['dist'] : ['dist', 'coverage', 'test-results', 'playwright-report', 'tmp', 'artifacts']) {
+for (const target of process.argv[2] === 'dist' ? ['dist'] : ['dist', 'coverage', 'test-results', 'playwright-report', 'tmp', 'artifacts', 'output']) {
   await rm(new URL(`../${target}`, import.meta.url), { recursive: true, force: true });
 }

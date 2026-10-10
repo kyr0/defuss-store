@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>defuss-store demo · state that survives the reload</title>
+  <meta name="description" content="Three small apps on defuss-store - a form, a chat and sticky notes - whose state survives a reload, with live store devtools and Get/Set state through the API.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cellipse cx='12' cy='5' rx='9' ry='3'/%3E%3Cpath d='M3 5v14a9 3 0 0 0 18 0V5M3 12a9 3 0 0 0 18 0'/%3E%3C/svg%3E">
+  <script>
+    // Before paint, before any module (defuss-shadcn Dark Mode guide): the saved theme, else the OS default.
+    // The value is a defuss-store envelope written by ../assets/theme.js; a raw string is accepted too.
+    let saved = '';
+    try {
+      const raw = JSON.parse(localStorage.getItem('defuss-shadcn-theme'));
+      saved = raw && raw.format === 'defuss-store' ? raw.value : raw;
+    } catch {}
+    if (saved === 'dark' || ((!saved || saved === 'system') && matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+      document.documentElement.style.colorScheme = 'dark';
+    }
+  </script>
+  <!-- defuss-shadcn from jsDelivr at an exact release, pinned by Subresource Integrity. -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/defuss-shadcn@0.9.8/dist/components/core.min.css" integrity="sha384-XTkN5+CRRKO70LZ4OcV6O+kj6BY5lxdsRQ02oMz3kDCm9kd4B+16jbojkbgrbL0e" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/defuss-shadcn@0.9.8/dist/components/all.min.css" integrity="sha384-3N21mZZQYTo6BWRxl629QHRrstw0IXVKRonDLdRbrYlODgFskMA/kODfnDX/gNk4" crossorigin="anonymous">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+<svg class="sr-only" aria-hidden="true">
+  <symbol id="i-logo" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5M3 12a9 3 0 0 0 18 0"/></symbol>
+  <symbol id="i-form" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M12 11h4M12 16h4M8 11h.01M8 16h.01"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-sticky" viewBox="0 0 24 24"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v4a2 2 0 0 0 2 2h4"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6m8 14h8"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></symbol>
+  <symbol id="i-chevron-up" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></symbol>
+</svg>
+
+<div class="border-layout ds-app" id="layout" data-frame="none" data-grip="bar" data-center-min="320" data-save="defuss-store-docs:layout">
+  <main class="border-layout-center ds-center" aria-label="Demos">
+    <header class="ds-app-head">
+      <a class="ds-brand" href="../" target="_top"><svg class="ds-icon" aria-hidden="true"><use href="#i-logo"/></svg>defuss-store <span class="ds-brand-sub">demo</span></a>
+      <p class="ds-app-hint">Change anything, then reload. The devtools on the right log every change.</p>
+    </header>
+
+    <div class="alert" data-variant="destructive" role="alert" id="memory-only" hidden>
+      <svg class="alert-icon ds-icon" aria-hidden="true"><use href="#i-alert"/></svg>
+      <div class="alert-content">
+        <h5 class="alert-title">localStorage is blocked here</h5>
+        <p class="alert-description">This browser refused Web Storage, so the stores fall back to memory: the demos work, but a reload starts over.</p>
+      </div>
+    </div>
+
+    <div class="tabs ds-tabs">
+      <div class="tab-list" role="tablist" aria-label="Demos" id="demo-tabs" data-size="lg">
+        <button class="tab-trigger ds-tab" role="tab" aria-selected="true" aria-controls="panel-form" id="tab-form"><svg class="ds-icon ds-tab-icon" aria-hidden="true"><use href="#i-form"/></svg><span class="ds-tab-text"><span class="ds-tab-title">Form</span><span class="ds-tab-desc">Every keystroke kept</span></span></button>
+        <button class="tab-trigger ds-tab" role="tab" aria-selected="false" aria-controls="panel-chat" id="tab-chat" tabindex="-1"><svg class="ds-icon ds-tab-icon" aria-hidden="true"><use href="#i-chat"/></svg><span class="ds-tab-text"><span class="ds-tab-title">Chat</span><span class="ds-tab-desc">The draft survives too</span></span></button>
+        <button class="tab-trigger ds-tab" role="tab" aria-selected="false" aria-controls="panel-notes" id="tab-notes" tabindex="-1"><svg class="ds-icon ds-tab-icon" aria-hidden="true"><use href="#i-sticky"/></svg><span class="ds-tab-text"><span class="ds-tab-title">Notes</span><span class="ds-tab-desc">Sticky notes, local only</span></span></button>
+      </div>
+
+      <section class="tab-content ds-panel" role="tabpanel" id="panel-form" aria-labelledby="tab-form" tabindex="0">
+        <header class="ds-demo-head">
+          <div class="ds-demo-copy">
+            <h2 class="ds-demo-title">A form that remembers</h2>
+            <p class="ds-demo-desc">Each field is one key of one store: typing calls <code>store.set('name', value)</code>. Reload the page and the values come back from <code>localStorage</code>, validated before they reach the form.</p>
+          </div>
+          <div class="ds-demo-actions">
+            <span class="badge" data-variant="outline" data-saved>Nothing saved yet</span>
+            <button type="button" class="btn" data-variant="outline" data-size="sm" data-action="get" data-demo="form"><svg class="ds-icon" aria-hidden="true"><use href="#i-eye"/></svg>Get state</button>
+            <button type="button" class="btn" data-variant="outline" data-size="sm" data-action="set" data-demo="form"><svg class="ds-icon" aria-hidden="true"><use href="#i-pencil"/></svg>Set state…</button>
+          </div>
+        </header>
+        <!-- autocomplete="off": the browser must not restore the fields itself, or the demo would prove nothing -->
+        <form class="form ds-form" aria-label="Profile" autocomplete="off">
+          <div class="ds-form-grid">
+            <div class="form-field">
+              <label class="label" for="f-name">Name</label>
+              <input class="input" type="text" id="f-name" name="name" maxlength="80" placeholder="Ada Lovelace">
+            </div>
+            <div class="form-field">
+              <label class="label" for="f-email">Email</label>
+              <input class="input" type="email" id="f-email" name="email" maxlength="120" placeholder="ada@example.org">
+            </div>
+          </div>
+          <div class="form-field">
+            <label class="label" for="f-role">Role</label>
+            <select class="select" id="f-role" name="role">
+              <option value="" selected>Select a role</option>
+              <option value="engineer">Engineer</option>
+              <option value="designer">Designer</option>
+              <option value="manager">Manager</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <fieldset class="radio-group" data-orientation="horizontal">
+            <legend class="label">Plan</legend>
+            <div class="radio-item">
+              <input class="radio" type="radio" name="plan" id="f-plan-hobby" value="hobby" checked>
+              <label for="f-plan-hobby">Hobby</label>
+            </div>
+            <div class="radio-item">
+              <input class="radio" type="radio" name="plan" id="f-plan-team" value="team">
+              <label for="f-plan-team">Team</label>
+            </div>
+            <div class="radio-item">
+              <input class="radio" type="radio" name="plan" id="f-plan-enterprise" value="enterprise">
+              <label for="f-plan-enterprise">Enterprise</label>
+            </div>
+          </fieldset>
+          <div class="form-field-row">
+            <div>
+              <label class="label" for="f-newsletter">Release notes by email</label>
+              <p class="field-description" id="f-newsletter-desc">A boolean in the store; nothing is sent anywhere.</p>
+            </div>
+            <input class="switch" type="checkbox" role="switch" id="f-newsletter" name="newsletter" aria-describedby="f-newsletter-desc">
+          </div>
+          <div class="form-field">
+            <label class="label" for="f-bio">About you</label>
+            <textarea class="textarea" id="f-bio" name="bio" maxlength="500" data-rows="3" data-max-rows="6" placeholder="Write a few lines, then reload…"></textarea>
+          </div>
+          <div class="form-actions">
+            <button class="btn" type="reset" data-variant="outline">Reset to defaults</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="tab-content ds-panel" role="tabpanel" id="panel-chat" aria-labelledby="tab-chat" tabindex="0" hidden>
+        <header class="ds-demo-head">
+          <div class="ds-demo-copy">
+            <h2 class="ds-demo-title">A chat whose draft survives</h2>
+            <p class="ds-demo-desc">The transcript and the half-written message share one store. Each keystroke is one synchronous <code>store.set('draft', value)</code>: reload mid-sentence and keep typing.</p>
+          </div>
+          <div class="ds-demo-actions">
+            <span class="badge" data-variant="outline" data-saved>Nothing saved yet</span>
+            <button type="button" class="btn" data-variant="outline" data-size="sm" data-action="get" data-demo="chat"><svg class="ds-icon" aria-hidden="true"><use href="#i-eye"/></svg>Get state</button>
+            <button type="button" class="btn" data-variant="outline" data-size="sm" data-action="set" data-demo="chat"><svg class="ds-icon" aria-hidden="true"><use href="#i-pencil"/></svg>Set state…</button>
+          </div>
+        </header>
+        <section class="session ds-session" id="chat" aria-label="Chat with defuss-store" data-animate>
+          <div class="session-viewport" aria-label="Messages">
+            <div class="session-content">
+              <div class="session-item"><div class="marker" data-variant="separator"><span class="marker-content">Send a message, start the next one, then reload</span></div></div>
+            </div>
+            <button type="button" class="session-scroll-button" data-to="end" aria-label="Scroll to the latest message"></button>
+          </div>
+          <div class="session-footer">
+            <form class="textarea-group" aria-label="Message composer" autocomplete="off">
+              <textarea class="textarea" data-rows="1" data-max-rows="6" aria-label="Message" maxlength="500" placeholder="Write a message… Enter sends, Shift+Enter breaks the line"></textarea>
+              <div class="textarea-group-actions">
+                <span class="textarea-group-spacer"></span>
+                <output class="textarea-group-count">0 / 500</output>
+                <button class="btn" data-size="icon-sm" type="submit" aria-label="Send"><svg class="ds-icon" aria-hidden="true"><use href="#i-send"/></svg></button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </section>
+
+      <section class="tab-content ds-panel" role="tabpanel" id="panel-notes" aria-labelledby="tab-notes" tabindex="0" hidden>
+        <header class="ds-demo-head">
+          <div class="ds-demo-copy">
+            <h2 class="ds-demo-title">Sticky notes in localStorage</h2>
+            <p class="ds-demo-desc">One store, <code>{ notes: [{ id, text }] }</code>. Typing writes <code>store.set('notes[0].text', value)</code>, deleting calls <code>store.remove('notes[0]')</code>. Nothing leaves this browser.</p>
+          </div>
+          <div class="ds-demo-actions">
+            <span class="badge" data-variant="outline" data-saved>Nothing saved yet</span>
+            <button type="button" class="btn" data-variant="outline" data-size="sm" data-action="get" data-demo="notes"><svg class="ds-icon" aria-hidden="true"><use href="#i-eye"/></svg>Get state</button>
+            <button type="button" class="btn" data-variant="outline" data-size="sm" data-action="set" data-demo="notes"><svg class="ds-icon" aria-hidden="true"><use href="#i-pencil"/></svg>Set state…</button>
+          </div>
+        </header>
+        <div class="ds-board-head">
+          <h3 class="ds-board-title"><svg class="ds-icon" aria-hidden="true"><use href="#i-sticky"/></svg>Your notes</h3>
+          <span class="badge" data-variant="secondary" data-notes-count>0 notes</span>
+          <button type="button" class="btn" data-size="sm" data-add-note><svg class="ds-icon" aria-hidden="true"><use href="#i-plus"/></svg>Add note</button>
+        </div>
+        <div class="ds-notes-scroll">
+          <div class="ds-notes"></div>
+          <section class="mk-empty-state" data-variant="dashed" aria-labelledby="notes-empty-title">
+            <span class="mk-empty-state-icon" aria-hidden="true"><svg class="ds-icon"><use href="#i-sticky"/></svg></span>
+            <h2 class="mk-empty-state-title" id="notes-empty-title">No notes yet</h2>
+            <p class="mk-empty-state-text">Add a note and write anything. Close the tab, come back tomorrow: it is still here, in this browser only.</p>
+          </section>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="resizer border-layout-east" id="devtools-region">
+    <section class="card panel ds-devtools" id="devtools" aria-labelledby="devtools-title" style="width:25rem">
+      <header class="panel-header">
+        <svg class="panel-icon ds-icon" aria-hidden="true"><use href="#i-terminal"/></svg>
+        <h2 class="panel-title" id="devtools-title">Store devtools</h2>
+        <div class="panel-tools">
+          <button type="button" class="btn" data-variant="ghost" data-size="icon-sm" id="dt-log-clear" aria-label="Clear the change log"><svg class="ds-icon" aria-hidden="true"><use href="#i-trash"/></svg></button>
+          <label class="swap panel-minimize">
+            <input type="checkbox" aria-label="Minimize Store devtools">
+            <span class="swap-off"><svg class="ds-icon" aria-hidden="true"><use href="#i-chevron-up"/></svg></span>
+            <span class="swap-on"><svg class="ds-icon" aria-hidden="true"><use href="#i-chevron-down"/></svg></span>
+          </label>
+        </div>
+      </header>
+      <div class="panel-body ds-dt">
+        <p class="ds-dt-sub">Each line is one call of <code>store.subscribe((next, previous, changedPath) =&gt; …)</code>. Nothing else feeds it.</p>
+        <div class="ds-dt-filter">
+          <label class="label" for="dt-filter">Show</label>
+          <select class="select" id="dt-filter">
+            <option value="all" selected>All stores</option>
+            <option value="form">form</option>
+            <option value="chat">chat</option>
+            <option value="notes">notes</option>
+            <option value="ui">ui (the open tab)</option>
+            <option value="theme">theme</option>
+            <option value="tabs.store">tabs.store (defuss-shadcn)</option>
+            <option value="layout.store">layout.store (defuss-shadcn)</option>
+          </select>
+        </div>
+        <section class="ds-dt-section" aria-labelledby="dt-log-title">
+          <h3 class="ds-dt-heading" id="dt-log-title">Changes, newest first</h3>
+          <div class="mockup-code ds-log" data-chrome="none" data-wrap id="dt-log" aria-live="off"></div>
+        </section>
+        <section class="ds-dt-section" aria-labelledby="dt-snapshot-title">
+          <h3 class="ds-dt-heading" id="dt-snapshot-title"><code>form.get()</code></h3>
+          <div class="scroll-area ds-snapshot-wrap"><pre class="ds-snapshot" id="dt-snapshot"></pre></div>
+        </section>
+        <section class="ds-dt-section" aria-labelledby="dt-persistence-title">
+          <h3 class="ds-dt-heading" id="dt-persistence-title"><code>persistence.status()</code></h3>
+          <dl class="ds-dl" id="dt-persistence"></dl>
+          <div class="ds-dt-actions">
+            <button type="button" class="btn" data-variant="outline" data-size="sm" id="dt-reset"><code>store.reset()</code></button>
+            <button type="button" class="btn" data-variant="outline" data-size="sm" id="dt-clear-key"><code>persistence.clear()</code></button>
+          </div>
+        </section>
+      </div>
+      <footer class="panel-footer" id="dt-count">0 changes via <code>store.subscribe()</code></footer>
+    </section>
+  </div>
+</div>
+<script>
+  // Phones get the stacked split (demo above, devtools below) - chosen before the layout initializes.
+  if (matchMedia('(max-width: 48rem)').matches) {
+    const region = document.getElementById('devtools-region');
+    region.classList.replace('border-layout-east', 'border-layout-south');
+    region.firstElementChild.style.cssText = 'height:18rem';
+  }
+</script>
+
+<dialog id="state-dialog" class="dialog" data-size="lg" role="dialog" aria-modal="true" aria-labelledby="state-title" aria-describedby="state-lead">
+  <div class="dialog-content">
+    <div class="dialog-header">
+      <h2 class="dialog-title" id="state-title">Get the form state</h2>
+      <p class="dialog-description"><code class="ds-call" id="state-call">formStore.get()</code> <span id="state-lead"></span></p>
+    </div>
+    <div class="dialog-body ds-state-body">
+      <label class="label" for="state-json">JSON</label>
+      <textarea class="textarea ds-json" id="state-json" data-rows="10" data-max-rows="12" spellcheck="false" autocomplete="off"></textarea>
+      <div class="alert" data-variant="destructive" role="alert" id="state-error" hidden>
+        <svg class="alert-icon ds-icon" aria-hidden="true"><use href="#i-alert"/></svg>
+        <div class="alert-content">
+          <h5 class="alert-title">Rejected - the store is unchanged</h5>
+          <p class="alert-description" id="state-error-text"></p>
+        </div>
+      </div>
+    </div>
+    <div class="dialog-footer">
+      <span class="sr-only" role="status" id="state-status"></span>
+      <button type="button" class="btn" data-variant="outline" id="state-copy"><svg class="ds-icon" aria-hidden="true"><use href="#i-copy"/></svg>Copy</button>
+      <button type="button" class="btn" data-variant="outline" data-dialog-close>Close</button>
+      <button type="button" class="btn" id="state-apply">Apply with <code>store.set()</code></button>
+    </div>
+  </div>
+</dialog>
+
+<script type="module" src="https://cdn.jsdelivr.net/npm/defuss-shadcn@0.9.8/dist/components/all.min.js" integrity="sha384-Lk87A4KViuU62PT7Hy5Qw2DHzw0iEtvi2huW/2h9963U/cZLBARdRf7LZMCsirTa" crossorigin="anonymous"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -6,3 +6,14 @@ playwright-report/
 artifacts/
 tmp/
 *.tgz
+__pycache__/
+.env
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+var/*
+output/*
+input/*
+.DS_Store
+.cache/

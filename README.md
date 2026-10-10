@@ -2,15 +2,15 @@
 
 Small synchronous observable stores, extracted from defuss and packaged independently. Zero runtime dependencies; TypeScript declarations; ESM for Node and browsers; optional validated Web Storage persistence and defuss-shadcn State API bindings.
 
-## Install
+Docs, live demo and API overview: [store.defuss.org](https://store.defuss.org).
 
-After publication:
+## Install
 
 ```sh
 npm install defuss-store
 ```
 
-Before publication, run `npm run test:package` and install the generated tarball with `npm install artifacts/defuss-store-0.1.0.tgz`.
+To try an unreleased build, run `npm run test:package` and install the generated tarball with `npm install artifacts/defuss-store-0.1.0.tgz`.
 
 Node 22.12+ is supported. Browsers must support modern ES2022 features. CommonJS and legacy browsers are not targeted. The root entry has no DOM or storage dependencies.
 
@@ -200,4 +200,4 @@ npm run check
 
 `check` runs lint, source and public API type checks, builds, unit coverage, real Chromium tests, an isolated packed-consumer install, and package verification. The packed consumer tests NodeNext and Bundler declaration resolution, DOM-free SSR types, every ESM entry, and browser bundling without workspace aliases. It writes the publishable `.tgz` and `artifacts/package-verification.json`.
 
-Use `npm run dev` after building to open the browser example at `http://127.0.0.1:4178`. `npm run bench` runs local benchmarks without performance thresholds. A thin `Makefile` exposes the same workflows. See [RELEASE.md](./RELEASE.md) in the source distribution for publication instructions and [ARCH.md](./ARCH.md) for internals. The provenance of the vendored browser fixtures is recorded in `tests/fixtures/vendor/provenance.json`.
+Use `npm run dev` after building to open the browser example at `http://127.0.0.1:4178`; the docs site is at `/docs/` on the same server, and locally the browser tests reuse that running server (CI starts its own). `docs/` is the GitHub Pages site for store.defuss.org. It is static HTML and ES modules with no build step; `npm run build` copies `dist/browser.js` into it, `tests/e2e/docs.spec.ts` drives it in Chromium, and `npm run verify` fails when its sizes, coverage figures, version, served bundle or code excerpts differ from the build. `make bench` builds, runs the fixed-size benchmarks of `src/` and then the scaling benchmark of `dist/`, which times reads, writes and commits while path depth, list length and subscriber count grow and writes `output/bench-scaling.json`. `npm run bench:scaling -- --out docs/assets/bench.json` refreshes the snapshot the docs site charts. Neither has performance thresholds. A thin `Makefile` exposes the same workflows; `make verify` (lint, types, unit coverage, then build and the browser, packed-consumer and package checks) is what CI runs, and browser reports land in `output/`. `npm publish` runs the full `check` gate through `prepublishOnly`. See [ARCH.md](./ARCH.md) for internals. The provenance of the vendored browser fixtures is recorded in `tests/fixtures/vendor/provenance.json`.
