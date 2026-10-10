@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readFile, access } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
-const pkg = JSON.parse(await readFile('package.json', 'utf8')) as { private?: unknown; name: string; version: string; sideEffects: boolean; dependencies?: Record<string, string>; exports: Record<string, string | Record<string, string>> };
+const pkg = JSON.parse(await readFile('package.json', 'utf8')) as { private?: unknown; name: string; version: string; sideEffects: boolean; dependencies?: Record<string, string>; engines: { node: string }; exports: Record<string, string | Record<string, string>> };
 // Publication invariants: public package, tree-shakeable (sideEffects: false), zero runtime dependencies.
 assert.equal(pkg.private, undefined);
 assert.equal(pkg.name, 'defuss-store');
@@ -60,8 +60,8 @@ assert(coverageTags.length >= 2, 'Expected the landing page to cite line and bra
 for (const [, metric, text] of coverageTags) assert.equal(text, String(Math.floor(coverage.total[metric!]!.pct)), `docs/index.html: ${metric} coverage shows ${text} %, the report says ${coverage.total[metric!]!.pct} %`);
 // The benchmark snapshot backs the section's static claim: each cost grows with what it touches and with nothing
 // else - reads are flat in list length, every other series is linear, none is superlinear.
-const { exponent, shape } = await import('../docs/assets/scaling.js') as typeof import('../docs/assets/scaling.js');
-const bench = JSON.parse(await readFile('docs/assets/bench.json', 'utf8')) as { charts: { id: string; series: { id: string; points: { x: number; ns: number; q1: number; q3: number }[] }[] }[] };
+const { exponent, formatNs, shape } = await import('../docs/assets/scaling.js') as typeof import('../docs/assets/scaling.js');
+const bench = JSON.parse(await readFile('docs/assets/bench.json', 'utf8')) as { measuredAt: string; environment: { node: string; os: string; cpu: string }; charts: { id: string; x: string; series: { id: string; label: string; points: { x: number; ns: number; q1: number; q3: number }[] }[] }[] };
 for (const chart of bench.charts) {
   for (const series of chart.series) {
     assert(series.points.length >= 5 && series.points.every((p, i, all) => p.ns > 0 && p.q1 <= p.ns && p.ns <= p.q3 && (i === 0 || all[i - 1]!.x < p.x)), `docs/assets/bench.json: malformed series ${series.id}`);
@@ -71,6 +71,33 @@ for (const chart of bench.charts) {
 // Versions: the badges and the pinned jsDelivr URLs name the version in package.json.
 for (const [, text] of landing.matchAll(/data-version>([^<]*)</g)) assert.equal(text, `v${pkg.version}`, 'docs/index.html shows a stale version');
 for (const [, version] of landing.matchAll(/defuss-store@([^/'"]+)\//g)) assert.equal(version, pkg.version, 'docs/index.html links a stale defuss-store version');
+// README.md quotes the same build facts as tables, checked the same way: each size row ends with its import's
+// dist/stats.json bytes, each scaling row is rebuilt from docs/assets/bench.json, and every version is package.json's.
+// Checked rather than generated: the rows sit in hand-written prose, and a failure prints the expected row to paste.
+// VERIFIED: changing one size, one scaling cell, the machine, a version or the Node badge in README.md made the matching check fail.
+const readme = await readFile('README.md', 'utf8');
+const bytes = (value: number) => `${value.toLocaleString('en-US')} B`;
+const imports = { index: 'defuss-store', 'storage/index': 'defuss-store/storage', 'persist/index': 'defuss-store/persist', 'bind/index': 'defuss-store/bind', browser: 'defuss-store/browser' };
+for (const [entry, name] of Object.entries(imports)) {
+  const size = stats[entry];
+  assert(size, `dist/stats.json lacks ${entry}`);
+  const cells = `| ${bytes(size.bundledMinifiedBytes)} | ${bytes(size.bundledGzipBytes)} |`;
+  assert(readme.split('\n').some(line => line.startsWith(`| \`${name}\` |`) && line.endsWith(cells)), `README.md: the ${name} size row must end with ${cells} (dist/stats.json)`);
+}
+const { splitCalls } = await import('../docs/assets/dom.js') as typeof import('../docs/assets/dom.js');
+const { cpu, os, node } = bench.environment;
+assert(readme.includes(`${cpu} (${os}), Node.js ${node}, ${bench.measuredAt.slice(0, 10)}`), 'README.md: the scaling section names another machine or date than docs/assets/bench.json');
+for (const chart of bench.charts) {
+  for (const series of chart.series) {
+    const [first, last] = [series.points[0]!, series.points.at(-1)!];
+    const label = splitCalls(series.label).map(part => part.call ? `\`${part.text}\`` : part.text).join('');
+    const row = `| ${label} | ${first.x.toLocaleString('en-US')} to ${last.x.toLocaleString('en-US')} ${chart.x} | ${formatNs(first.ns)} | ${formatNs(last.ns)} | ${shape(exponent(series.points))} |`;
+    assert(readme.includes(row), `README.md: the scaling table lacks ${row} (docs/assets/bench.json)`);
+  }
+}
+for (const [, version] of readme.matchAll(/defuss-store[@-](\d[^/'"\s]*?)(?:\/|\.tgz)/g)) assert.equal(version, pkg.version, 'README.md names a stale defuss-store version');
+assert.equal(readme.match(/version\s*=\s*\{([^}]*)\}/)?.[1], pkg.version, 'README.md: the citation names a stale version');
+assert(readme.includes(`node-%E2%89%A5${pkg.engines.node.replace('>=', '')}-`), 'README.md: the Node badge differs from engines.node');
 // Code excerpts are real: every line of a pre[data-source] exists in that file ('// …' marks a gap).
 const decode = (html: string) => html.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
 const excerpts = [...landing.matchAll(/<pre data-tab="[^"]+" data-source="([^"]+)"[^>]*><code>(.*?)<\/code><\/pre>/gs)];
@@ -92,4 +119,4 @@ for (const file of ['docs/assets/scaling.js']) {
   const source = await readFile(file, 'utf8');
   for (const [url] of source.matchAll(/https:\/\/cdn\.jsdelivr\.net\/npm\/[^'"`\s]+/g)) assert(/@\d+\.\d+\.\d+\//.test(url) && /sha384-/.test(source), `${file}: unpinned external asset ${url}`);
 }
-console.log('Package metadata, public exports, upstream fixture integrity, optional-layer isolation, measured artifacts and docs facts verified.');
+console.log('Package metadata, public exports, upstream fixture integrity, optional-layer isolation, measured artifacts, docs and README facts verified.');

@@ -57,3 +57,10 @@ A lesson recurring ≥2 → test | .agents/VERIFY.py rule | MEMORY line, then de
 2026-10-10T15:55:43Z s=1956eb00 FINDING 6fce291 paths new to this review (src/types.ts, tests/types/api.ts, scripts/clean.ts, AGENTS.md, .github/workflows/ci.yml → verify.yml) learn=test: tests/types/api.ts type regression; make verify
 2026-10-10T15:57:31Z s=1956eb00 DONE fp=decbb9f4708e cov=98.2% paths=.github/workflows/verify.yml,.oxlintrc.json,ARCH.md,CHANGELOG.md(+30)
 2026-10-10T15:57:31Z s=1956eb00 FINDING main@9348592 (merge commit) learn=none: re-attestation of an unchanged, already reviewed fingerprint after a merge
+2026-10-10T16:15:52Z s=ee40922f DONE fp=41c1e7c9a646 cov=98.2% paths=ARCH.md,CHANGELOG.md,README.md,scripts/stats.ts(+1)
+2026-10-10T16:15:52Z s=ee40922f FINDING README.md:45 P07/L09 learn=none: one-off copy error, fixed in the page
+2026-10-10T16:15:52Z s=ee40922f FINDING README.md:336 B05 learn=none: one-off copy error, fixed in the page
+2026-10-10T16:15:52Z s=ee40922f FINDING README.md:348 B01 learn=none: one-off copy error, fixed in the page
+2026-10-10T16:15:52Z s=ee40922f FINDING README.md Patterns/Schema migration learn=none: docs/index.html still carries the same example; reported to the human instead of editing the site in a README task
+2026-10-10T16:15:52Z s=ee40922f FINDING scripts/verify.ts README checks learn=verifier: README numbers and versions are now checked by npm run verify, which make verify and CI run
+2026-10-10T16:18:58Z s=ee40922f DONE fp=a4fc69b6161b cov=98.2% paths=ARCH.md,CHANGELOG.md,README.md,scripts/stats.ts(+1)
