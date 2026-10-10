@@ -16,3 +16,4 @@ var/*
 output/*
 input/*
 .DS_Store
+.cache/

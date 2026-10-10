@@ -28,8 +28,11 @@ typecheck:
 	npm run typecheck
 lint:
 	npm run lint
-bench:
+# Fixed-size benchmarks of src/, then the scaling benchmark of the built dist/ (output/bench-scaling.json).
+# Refresh the docs snapshot with: npm run bench:scaling -- --out docs/assets/bench.json
+bench: build
 	npm run bench
+	npm run bench:scaling
 test-package:
 	npm run test:package
 # What CI runs; cheapest first. typecheck also runs the public API type tests in tests/types.

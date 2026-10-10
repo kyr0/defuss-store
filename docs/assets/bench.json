@@ -1,0 +1,374 @@
+{
+ "schema": 1,
+ "package": "defuss-store@0.1.0",
+ "measuredAt": "2026-10-10T14:05:38.756Z",
+ "environment": {
+  "node": "v24.14.0",
+  "os": "darwin arm64",
+  "cpu": "Apple M4"
+ },
+ "method": "median of 15 timings per point in 5 interleaved rounds; each timing repeats the operation for at least 15 ms; dist/ build",
+ "charts": [
+  {
+   "id": "depth",
+   "x": "path segments",
+   "series": [
+    {
+     "id": "depth-get",
+     "label": "get(path)",
+     "points": [
+      {
+       "x": 1,
+       "ns": 35.8,
+       "q1": 35.7,
+       "q3": 36.1,
+       "repetitions": 524288
+      },
+      {
+       "x": 2,
+       "ns": 98.4,
+       "q1": 96.8,
+       "q3": 98.9,
+       "repetitions": 262144
+      },
+      {
+       "x": 4,
+       "ns": 191.7,
+       "q1": 190.3,
+       "q3": 195.2,
+       "repetitions": 131072
+      },
+      {
+       "x": 8,
+       "ns": 370.5,
+       "q1": 369.7,
+       "q3": 378.3,
+       "repetitions": 65536
+      },
+      {
+       "x": 16,
+       "ns": 716.6,
+       "q1": 708.2,
+       "q3": 724.4,
+       "repetitions": 32768
+      },
+      {
+       "x": 32,
+       "ns": 1433.1,
+       "q1": 1425.8,
+       "q3": 1457.7,
+       "repetitions": 16384
+      },
+      {
+       "x": 64,
+       "ns": 2873.1,
+       "q1": 2827,
+       "q3": 2908.1,
+       "repetitions": 8192
+      },
+      {
+       "x": 128,
+       "ns": 5751.6,
+       "q1": 5695.3,
+       "q3": 5994.8,
+       "repetitions": 4096
+      },
+      {
+       "x": 256,
+       "ns": 11467.5,
+       "q1": 11300.1,
+       "q3": 11585.2,
+       "repetitions": 2048
+      }
+     ]
+    },
+    {
+     "id": "depth-set",
+     "label": "set(path, value)",
+     "points": [
+      {
+       "x": 1,
+       "ns": 95.5,
+       "q1": 94.9,
+       "q3": 95.6,
+       "repetitions": 262144
+      },
+      {
+       "x": 2,
+       "ns": 219.4,
+       "q1": 217.7,
+       "q3": 223.3,
+       "repetitions": 131072
+      },
+      {
+       "x": 4,
+       "ns": 416,
+       "q1": 413,
+       "q3": 424.4,
+       "repetitions": 65536
+      },
+      {
+       "x": 8,
+       "ns": 805.9,
+       "q1": 794.7,
+       "q3": 808.7,
+       "repetitions": 32768
+      },
+      {
+       "x": 16,
+       "ns": 1552.5,
+       "q1": 1534.7,
+       "q3": 1613.2,
+       "repetitions": 16384
+      },
+      {
+       "x": 32,
+       "ns": 3089,
+       "q1": 3064.6,
+       "q3": 3131.3,
+       "repetitions": 8192
+      },
+      {
+       "x": 64,
+       "ns": 6519,
+       "q1": 6416.6,
+       "q3": 6671.1,
+       "repetitions": 4096
+      },
+      {
+       "x": 128,
+       "ns": 13059.4,
+       "q1": 12862.8,
+       "q3": 13148,
+       "repetitions": 2048
+      },
+      {
+       "x": 256,
+       "ns": 25980.3,
+       "q1": 25621.2,
+       "q3": 26368.9,
+       "repetitions": 1024
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "length",
+   "x": "list items",
+   "series": [
+    {
+     "id": "length-get",
+     "label": "get(items[last].text)",
+     "points": [
+      {
+       "x": 10,
+       "ns": 129.9,
+       "q1": 128.5,
+       "q3": 130.8,
+       "repetitions": 131072
+      },
+      {
+       "x": 100,
+       "ns": 131.8,
+       "q1": 130.5,
+       "q3": 134,
+       "repetitions": 131072
+      },
+      {
+       "x": 1000,
+       "ns": 134.7,
+       "q1": 134.2,
+       "q3": 135.5,
+       "repetitions": 131072
+      },
+      {
+       "x": 10000,
+       "ns": 137.7,
+       "q1": 137,
+       "q3": 139,
+       "repetitions": 131072
+      },
+      {
+       "x": 100000,
+       "ns": 139.1,
+       "q1": 138.4,
+       "q3": 139.8,
+       "repetitions": 131072
+      }
+     ]
+    },
+    {
+     "id": "length-set",
+     "label": "set(items[last].text, value)",
+     "points": [
+      {
+       "x": 10,
+       "ns": 300.8,
+       "q1": 287.1,
+       "q3": 328.4,
+       "repetitions": 65536
+      },
+      {
+       "x": 100,
+       "ns": 331.7,
+       "q1": 326.6,
+       "q3": 372.7,
+       "repetitions": 65536
+      },
+      {
+       "x": 1000,
+       "ns": 524.2,
+       "q1": 507.1,
+       "q3": 611.5,
+       "repetitions": 32768
+      },
+      {
+       "x": 10000,
+       "ns": 2613.6,
+       "q1": 2556.1,
+       "q3": 2770.2,
+       "repetitions": 8192
+      },
+      {
+       "x": 100000,
+       "ns": 90365.6,
+       "q1": 77001.8,
+       "q3": 123066.4,
+       "repetitions": 256
+      }
+     ]
+    },
+    {
+     "id": "length-persist",
+     "label": "set(…) + persistence to memory storage",
+     "points": [
+      {
+       "x": 10,
+       "ns": 4027.9,
+       "q1": 3742,
+       "q3": 4254.1,
+       "repetitions": 4096
+      },
+      {
+       "x": 100,
+       "ns": 28486.2,
+       "q1": 27298.4,
+       "q3": 31176.1,
+       "repetitions": 1024
+      },
+      {
+       "x": 1000,
+       "ns": 288500,
+       "q1": 265310.2,
+       "q3": 316933.6,
+       "repetitions": 64
+      },
+      {
+       "x": 10000,
+       "ns": 3183177.1,
+       "q1": 2891497.4,
+       "q3": 3427070.3,
+       "repetitions": 8
+      },
+      {
+       "x": 100000,
+       "ns": 34247250,
+       "q1": 33089354,
+       "q3": 38487812.5,
+       "repetitions": 1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "subscribers",
+   "x": "subscribers",
+   "series": [
+    {
+     "id": "subscribers-all",
+     "label": "set() calls every listener",
+     "points": [
+      {
+       "x": 1,
+       "ns": 65.2,
+       "q1": 63.2,
+       "q3": 69.1,
+       "repetitions": 262144
+      },
+      {
+       "x": 10,
+       "ns": 129.8,
+       "q1": 121,
+       "q3": 131.9,
+       "repetitions": 131072
+      },
+      {
+       "x": 100,
+       "ns": 742.2,
+       "q1": 727.6,
+       "q3": 784,
+       "repetitions": 32768
+      },
+      {
+       "x": 1000,
+       "ns": 8125.4,
+       "q1": 7944.7,
+       "q3": 8258.7,
+       "repetitions": 2048
+      },
+      {
+       "x": 10000,
+       "ns": 76444.5,
+       "q1": 75006.1,
+       "q3": 80086.8,
+       "repetitions": 256
+      }
+     ]
+    },
+    {
+     "id": "subscribers-selected",
+     "label": "set() with selectors, one selection changes",
+     "points": [
+      {
+       "x": 1,
+       "ns": 179,
+       "q1": 175.1,
+       "q3": 181.1,
+       "repetitions": 131072
+      },
+      {
+       "x": 10,
+       "ns": 286.7,
+       "q1": 279.8,
+       "q3": 294.5,
+       "repetitions": 65536
+      },
+      {
+       "x": 100,
+       "ns": 1175.7,
+       "q1": 1166.2,
+       "q3": 1188.5,
+       "repetitions": 16384
+      },
+      {
+       "x": 1000,
+       "ns": 11239.5,
+       "q1": 10933.2,
+       "q3": 11850.6,
+       "repetitions": 2048
+      },
+      {
+       "x": 10000,
+       "ns": 107681.6,
+       "q1": 104751,
+       "q3": 109023.3,
+       "repetitions": 128
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

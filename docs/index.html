@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>defuss-store · state that survives the page reload</title>
+  <meta name="description" content="Small synchronous observable stores with path writes, selectors and computed values, plus validated, versioned Web Storage persistence, cross-tab sync and defuss-shadcn bindings. Zero dependencies, 4.7 kB gzip with every layer.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cellipse cx='12' cy='5' rx='9' ry='3'/%3E%3Cpath d='M3 5v14a9 3 0 0 0 18 0V5M3 12a9 3 0 0 0 18 0'/%3E%3C/svg%3E">
+  <script>
+    // Before paint, before df$ exists (defuss-shadcn Dark Mode guide): the saved theme, else the OS default.
+    // The value is a defuss-store envelope written by assets/theme.js; a raw string is accepted too.
+    let saved = '';
+    try {
+      const raw = JSON.parse(localStorage.getItem('defuss-shadcn-theme'));
+      saved = raw && raw.format === 'defuss-store' ? raw.value : raw;
+    } catch {}
+    if (saved === 'dark' || ((!saved || saved === 'system') && matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+      document.documentElement.style.colorScheme = 'dark';
+    }
+  </script>
+  <!-- defuss-shadcn from jsDelivr at an exact release, pinned by Subresource Integrity. -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/defuss-shadcn@0.9.8/dist/components/core.min.css" integrity="sha384-XTkN5+CRRKO70LZ4OcV6O+kj6BY5lxdsRQ02oMz3kDCm9kd4B+16jbojkbgrbL0e" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/defuss-shadcn@0.9.8/dist/theme/utils/shapes.css" integrity="sha384-ZBxneVyx668JGwBduQwGw2IxfY97WGoUUorTRbLyKqyv5C9HhMDWV2+00XywursX" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/defuss-shadcn@0.9.8/dist/components/all.min.css" integrity="sha384-3N21mZZQYTo6BWRxl629QHRrstw0IXVKRonDLdRbrYlODgFskMA/kODfnDX/gNk4" crossorigin="anonymous">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<svg class="sr-only" aria-hidden="true">
+  <symbol id="i-logo" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5M3 12a9 3 0 0 0 18 0"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2m-7.07-17.07 1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-7-7 7 7-7 7"/></symbol>
+  <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14m7-7-7 7-7-7"/></symbol>
+  <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7M12 19V5"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M7 7h10v10M7 17 17 7"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12.83 2.18 8.58 3.9a1 1 0 0 1 0 1.83l-8.58 3.9a2 2 0 0 1-1.66 0L2.6 7.91a1 1 0 0 1 0-1.83l8.58-3.9a2 2 0 0 1 1.66 0Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65M22 12.65l-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></symbol>
+  <symbol id="i-feather" viewBox="0 0 24 24"><path d="M12.67 19a2 2 0 0 0 1.416-.588l6.154-6.172a6 6 0 0 0-8.49-8.49L5.586 9.914A2 2 0 0 0 5 11.328V18a1 1 0 0 0 1 1z"/><path d="M16 8 2 22M17.5 15H9"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6m8 14h8"/></symbol>
+  <symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2m16 0h2m-7-1v2m-6-2v2"/></symbol>
+  <symbol id="i-package" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12m0 0 8.7-5M12 12 3.3 7"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M10 12.5 8 15l2 2.5m4-5 2 2.5-2 2.5M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></symbol>
+  <symbol id="i-reload" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></symbol>
+  <symbol id="i-maximize" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
+  <symbol id="i-linkedin" viewBox="0 0 24 24"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2"/></symbol>
+  <!-- the npm mark (Simple Icons, CC0), drawn filled like the LinkedIn mark -->
+  <symbol id="i-npm" viewBox="0 0 24 24"><path d="M1.763 0C.786 0 0 .786 0 1.763v20.474C0 23.214.786 24 1.763 24h20.474c.977 0 1.763-.786 1.763-1.763V1.763C24 .786 23.214 0 22.237 0zM5.13 5.323l13.837.019-.009 13.836h-3.464l.01-10.382h-3.456L12.04 19.17H5.113z"/></symbol>
+  <symbol id="i-github" viewBox="0 0 24 24"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M12 22v-5M9 8V2M15 8V2M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></symbol>
+</svg>
+
+<div id="top" class="ds-page">
+  <header class="mk-header" data-variant="floating">
+    <div class="mk-header-inner">
+      <a href="#top" class="mk-header-brand"><svg class="ds-icon ds-brand-icon" aria-hidden="true"><use href="#i-logo"/></svg><span class="mk-header-name">defuss-store</span></a>
+      <nav class="mk-header-nav" aria-label="Main">
+        <ul class="nav-menu-list">
+          <li class="nav-menu-item"><a class="nav-menu-link" href="#demo">Demo</a></li>
+          <li class="nav-menu-item"><a class="nav-menu-link" href="#how">How it works</a></li>
+          <li class="nav-menu-item"><a class="nav-menu-link" href="#defuss">With or without defuss</a></li>
+          <li class="nav-menu-item"><a class="nav-menu-link" href="#api">API</a></li>
+          <li class="nav-menu-item"><a class="nav-menu-link" href="#install">Install</a></li>
+        </ul>
+      </nav>
+      <div class="mk-header-actions">
+        <label class="swap" data-variant="rotate" data-size="sm">
+          <input type="checkbox" id="theme-toggle" aria-label="Dark mode">
+          <span class="swap-on"><svg class="ds-icon" aria-hidden="true"><use href="#i-moon"/></svg></span>
+          <span class="swap-off"><svg class="ds-icon" aria-hidden="true"><use href="#i-sun"/></svg></span>
+        </label>
+        <a class="btn mk-header-wide" data-variant="ghost" data-size="icon" href="https://github.com/kyr0/defuss-store" aria-label="defuss-store on GitHub"><svg class="ds-icon" aria-hidden="true"><use href="#i-github"/></svg></a>
+        <a class="btn mk-header-wide" data-variant="ghost" data-size="icon" href="https://www.npmjs.com/package/defuss-store" aria-label="defuss-store on npm"><svg class="ds-icon ds-icon-fill" aria-hidden="true"><use href="#i-npm"/></svg></a>
+        <a class="btn mk-header-wide" data-size="sm" href="#install">Install</a>
+        <button type="button" class="btn mk-header-menu" data-variant="ghost" data-size="icon" data-sheet-trigger="ds-menu" aria-haspopup="dialog" aria-label="Open menu"><svg class="ds-icon" aria-hidden="true"><use href="#i-menu"/></svg></button>
+      </div>
+    </div>
+    <dialog id="ds-menu" class="sheet" data-side="right" role="dialog" aria-modal="true" aria-labelledby="ds-menu-title">
+      <div class="sheet-content">
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="ds-menu-title">defuss-store</h2>
+        </div>
+        <div class="sheet-body">
+          <p class="mk-header-sheet-label">This page</p>
+          <ul class="mk-header-sheet-nav">
+            <li><a href="#demo" data-sheet-close>Demo <small>Form, chat, notes, devtools</small></a></li>
+            <li><a href="#how" data-sheet-close>How it works</a></li>
+            <li><a href="#defuss" data-sheet-close>With or without defuss</a></li>
+            <li><a href="#api" data-sheet-close>API</a></li>
+            <li><a href="#scaling" data-sheet-close>How it scales</a></li>
+            <li><a href="#install" data-sheet-close>Install</a></li>
+          </ul>
+        </div>
+        <div class="sheet-footer mk-header-sheet-actions">
+          <a class="btn" data-variant="outline" href="https://github.com/kyr0/defuss-store"><svg class="ds-icon" aria-hidden="true"><use href="#i-github"/></svg>GitHub</a>
+        </div>
+      </div>
+    </dialog>
+  </header>
+
+  <main class="ds-main">
+
+  <section class="parallax" aria-label="Introduction" style="padding-block:clamp(4rem, 10vw, 7rem) 1rem">
+    <div class="parallax-layer" data-depth="far" aria-hidden="true">
+      <div class="pattern-grid" style="width:100%;height:100%;--shape-ink:color-mix(in oklch, var(--foreground) 7%, transparent);--shape-pattern:32px;mask-image:radial-gradient(55% 60% at 50% 45%, #000, transparent 75%)"></div>
+    </div>
+    <div class="parallax-layer" data-depth="mid" aria-hidden="true" style="--parallax-speed:22%;mask-image:linear-gradient(#000 55%, transparent 92%)">
+      <div class="corner-blob" style="position:absolute;inset-block-start:10%;inset-inline-start:8%;width:min(22rem, 45%);aspect-ratio:1;background:color-mix(in oklch, var(--chart-1) 45%, transparent);filter:blur(60px);opacity:.55"></div>
+      <div class="corner-blob-3" style="position:absolute;inset-block-start:28%;inset-inline-end:6%;width:min(18rem, 40%);aspect-ratio:1;background:color-mix(in oklch, var(--chart-3) 40%, transparent);filter:blur(60px);opacity:.5"></div>
+    </div>
+    <div class="parallax-content">
+      <section class="mk-hero" style="width:100%">
+        <div class="mk-hero-copy">
+          <a class="mk-hero-pill" href="#numbers"><span class="badge" data-variant="default" data-size="sm" data-version>v0.1.0</span>Zero dependencies · <span data-stat="browser.bundledGzipBytes" data-unit="kB">4.7&nbsp;kB</span> gzip with every layer <svg class="ds-icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+          <h1 class="mk-hero-title">State that <strong>survives the page reload</strong> and</h1>
+          <p class="ds-flip"><span class="text-rotate"><span>
+            <span class="ds-accent">validates every read and write</span>
+            <span class="ds-accent">keeps bytes it cannot understand</span>
+            <span class="ds-accent">migrates old schema versions</span>
+            <span class="ds-accent">stays in sync across tabs</span>
+            <span class="ds-accent">binds to defuss-shadcn components</span>
+            <span class="ds-accent">works in Node.js as well</span>
+          </span></span></p>
+          <p class="mk-hero-desc"><code>defuss-store</code> is a small, <strong>synchronous</strong> observable store with path writes, selectors and computed values. Persist what must survive a reload to <code>localStorage</code> or <code>sessionStorage</code> - <strong>validated, versioned</strong>, and with unreadable bytes left untouched for you to recover - and bind it to any defuss-shadcn component. Plain JavaScript or TypeScript, with or without defuss.</p>
+          <div class="mk-hero-actions">
+            <a class="btn" data-size="lg" href="#demo">Try the live demo<svg class="ds-icon" aria-hidden="true"><use href="#i-arrow-down"/></svg></a>
+            <a class="btn" data-variant="outline" data-size="lg" href="#api">Read the API</a>
+          </div>
+          <p class="mk-hero-note">Built by <a href="https://www.linkedin.com/in/aronhomberg/" target="_blank" rel="noopener">Aron Homberg (kyr0)<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a> – Open Source (<a href="https://github.com/kyr0/defuss-store/blob/main/LICENSE" target="_blank" rel="noopener">MIT<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a>)</p>
+        </div>
+      </section>
+      <div class="ds-intro" id="intro">
+        <section class="ds-intro-item" aria-labelledby="intro-1">
+          <span class="ds-intro-icon" aria-hidden="true"><svg class="ds-icon"><use href="#i-check"/></svg></span>
+          <h3 id="intro-1">Synchronous, in order</h3>
+          <p><code>set()</code> has <strong>committed</strong> state when it returns. Listeners run first in, first out; one that throws does not stop the others, and the errors arrive together as one <code>AggregateError</code>.</p>
+        </section>
+        <section class="ds-intro-item" aria-labelledby="intro-2">
+          <span class="ds-intro-icon" aria-hidden="true"><svg class="ds-icon"><use href="#i-shield"/></svg></span>
+          <h3 id="intro-2">Bad bytes stay put</h3>
+          <p>Unparsable JSON, a value your validator rejects or a <strong>future schema version</strong> pauses writes and keeps the stored bytes. You can recover explicitly: <code>rehydrate()</code>, <code>flush()</code> or <code>clear()</code>.</p>
+        </section>
+        <section class="ds-intro-item" aria-labelledby="intro-3">
+          <span class="ds-intro-icon" aria-hidden="true"><svg class="ds-icon"><use href="#i-history"/></svg></span>
+          <h3 id="intro-3">Validated and versioned</h3>
+          <p>A <strong>validator is mandatory</strong> on every read and write. A schema <code>version</code> plus <code>migrate()</code> upgrades old data, and the migrated value is validated again.</p>
+        </section>
+        <section class="ds-intro-item" aria-labelledby="intro-4">
+          <span class="ds-intro-icon" aria-hidden="true"><svg class="ds-icon"><use href="#i-sync"/></svg></span>
+          <h3 id="intro-4">In sync across tabs</h3>
+          <p><code>sync: true</code> follows native storage events: another tab's write arrives <strong>without echoing back</strong>. Whole-value, last write wins.</p>
+        </section>
+        <section class="ds-intro-item" aria-labelledby="intro-5">
+          <span class="ds-intro-icon" aria-hidden="true"><svg class="ds-icon"><use href="#i-layers"/></svg></span>
+          <h3 id="intro-5">The backbone of every JS-based <code>defuss-shadcn</code> component</h3>
+          <p><code>defuss-shadcn</code> keeps each component's state in a <code>defuss-store</code> store, <code>el.store</code> is accessible from the DOM element. <code>defuss-store</code>'s API is exposed via <code>df$.store</code> and <code>bindState()</code> can be used to tie your own stores to any State API.</p>
+        </section>
+        <section class="ds-intro-item" aria-labelledby="intro-6">
+          <span class="ds-intro-icon" aria-hidden="true"><svg class="ds-icon"><use href="#i-feather"/></svg></span>
+          <h3 id="intro-6">Small, and safe on servers</h3>
+          <p>The core is <strong data-stat="index.bundledGzipBytes" data-unit="kB">1.9&nbsp;kB</strong> gzip, every layer <strong data-stat="browser.bundledGzipBytes" data-unit="kB">4.7&nbsp;kB</strong>, with <strong>zero dependencies</strong>. Importing it touches no <code>window</code>, <code>document</code> or storage.</p>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <div class="ds-flythrough">
+    <section class="parallax" data-sticky style="--parallax-length:2" aria-label="Set, validate, survive">
+      <div class="parallax-stage" style="background:radial-gradient(circle at 50% 50%, color-mix(in oklch, var(--chart-3) 55%, #05060f), #05060f 72%);color:#fff;border-radius:var(--radius-xl)">
+        <div class="parallax-layer" data-motion="zoom fade" style="--parallax-scale:6"><svg viewBox="0 0 400 400" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><circle cx="200" cy="200" r="60" fill="none" stroke="#7c8cff" stroke-width="1.5" opacity=".7"/><circle cx="200" cy="200" r="110" fill="none" stroke="#b07cff" stroke-width="1" opacity=".5"/><circle cx="200" cy="200" r="170" fill="none" stroke="#7cf0ff" stroke-width=".8" opacity=".35"/></svg></div>
+        <div class="parallax-layer" data-motion="pass" style="animation-range:contain 0% contain 40%;z-index:1"><p class="ds-fly-word">Set state.</p></div>
+        <div class="parallax-layer" data-motion="pass" style="animation-range:contain 30% contain 70%;z-index:2"><p class="ds-fly-word">Observe it.</p></div>
+        <div class="parallax-layer" data-motion="pass" style="animation-range:contain 60% contain 100%;z-index:3"><p class="ds-fly-word">Persist it.</p></div>
+        <div class="parallax-layer" data-motion="spin" style="--parallax-turn:180deg;--parallax-speed:0%;z-index:-1;opacity:.25"><svg viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g fill="none" stroke="#fff" stroke-width=".6"><path d="M200 200 460 200M200 200 425.2 330M200 200 330 425.2M200 200 200 460M200 200 70 425.2M200 200-25.2 330M200 200-60 200M200 200-25.2 70M200 200 70-25.2M200 200 200-60M200 200 330-25.2M200 200 425.2 70"/></g></svg></div>
+      </div>
+    </section>
+  </div>
+
+  <section id="demo" class="container ds-section parallax-reveal" data-reveal="zoom" aria-labelledby="demo-title">
+    <header class="mk-section-header" data-align="center">
+      <div class="mk-section-header-copy">
+        <span class="mk-section-header-eyebrow">Live demo</span>
+        <h2 class="mk-section-header-title" id="demo-title">🧪 Three app demos</h2>
+        <p class="mk-section-header-desc">A form, a chat and sticky notes, each on one store persisted to <code>localStorage</code>. Type anything, then press <strong>Reload demo</strong>: it all comes back, the open tab included. The panel on the right logs every change through <code>store.subscribe()</code>, and <strong>Get state</strong> / <strong>Set state</strong> drive each store through its API. Open it full screen in a second tab and type there: this frame follows.</p>
+      </div>
+    </header>
+    <div class="ds-window">
+      <div class="ds-frame">
+        <figure class="iframe" data-fit="container" data-variant="bare" id="playground">
+          <iframe class="iframe-frame" src="demo/" title="defuss-store demo: a form, a chat and notes with store devtools"></iframe>
+        </figure>
+      </div>
+      <div class="ds-window-foot">
+        <p class="ds-window-note"><svg class="ds-icon" aria-hidden="true"><use href="#i-sync"/></svg>Same origin as this page: the frame, a full-screen tab and this page's dark-mode switch share one <code>localStorage</code>.</p>
+        <div class="ds-window-actions">
+          <button type="button" class="btn" data-variant="ghost" data-size="sm" id="playground-reload"><svg class="ds-icon" aria-hidden="true"><use href="#i-reload"/></svg>Reload demo</button>
+          <a class="btn" data-variant="outline" data-size="sm" href="demo/" target="_blank" rel="noopener" id="playground-open"><svg class="ds-icon" aria-hidden="true"><use href="#i-maximize"/></svg>Open full screen<span class="sr-only"> (opens in a new tab)</span></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="ds-source">
+      <h3 class="ds-way-title"><svg class="ds-icon" aria-hidden="true"><use href="#i-file"/></svg>The code that runs above</h3>
+      <p class="ds-way-desc">Excerpts of the demo's own files - <code>scripts/verify.ts</code> fails the release if a line here no longer exists in its source. Every store is <code>createStore()</code> plus one <code>attachPersistence()</code>; the views only subscribe and write.</p>
+      <figure class="mk-code-block" data-variant="file" id="demo-source">
+        <div class="mk-code-block-head">
+          <div class="mk-code-block-tabs" role="radiogroup" aria-label="Demo file">
+            <label><input type="radio" name="cb-demo" value="persist" checked>persist.js</label><label><input type="radio" name="cb-demo" value="form">form.js</label><label><input type="radio" name="cb-demo" value="chat">chat.js</label><label><input type="radio" name="cb-demo" value="notes">notes.js</label><label><input type="radio" name="cb-demo" value="devtools">devtools.js</label><label><input type="radio" name="cb-demo" value="app">app.js</label>
+          </div>
+          <button class="mk-code-block-copy" type="button" aria-label="Copy code"><svg class="ds-icon" aria-hidden="true"><use href="#i-copy"/></svg></button>
+        </div>
+        <pre data-tab="persist" data-source="assets/persist.js" data-numbers><code><span><span class="mk-code-block-k">import</span> { attachPersistence, createMemoryStorage, createWebStorage } <span class="mk-code-block-k">from</span> <span class="mk-code-block-s">'./defuss-store/browser.js'</span>;</span><span></span><span><span class="mk-code-block-k">let</span> memoryOnly = <span class="mk-code-block-k">false</span>;</span><span><span class="mk-code-block-k">export</span> <span class="mk-code-block-k">const</span> storage = createWebStorage(<span class="mk-code-block-s">'local'</span>, {</span><span>  fallback: createMemoryStorage(),</span><span>  onUnavailable: () =&gt; { memoryOnly = <span class="mk-code-block-k">true</span>; },</span><span>});</span><span><span class="mk-code-block-c">// …</span></span><span><span class="mk-code-block-k">export</span> <span class="mk-code-block-k">function</span> persist(store, key, validate, onError) {</span><span>  <span class="mk-code-block-k">return</span> attachPersistence(store, { key, storage, version: 1, validate, sync: !memoryOnly, onError });</span><span>}</span></code></pre>
+        <pre data-tab="form" data-source="demo/form.js" data-numbers><code><span><span class="mk-code-block-k">export</span> <span class="mk-code-block-k">function</span> formDemo(panel) {</span><span>  <span class="mk-code-block-k">const</span> store = createStore(defaults.form);</span><span>  <span class="mk-code-block-k">const</span> form = panel.querySelector(<span class="mk-code-block-s">'form'</span>);</span><span>  <span class="mk-code-block-c">// …</span></span><span>  <span class="mk-code-block-c">// Store → form. Whoever wrote the value - the keyboard, "Set state", a reload or another tab - the fields follow.</span></span><span>  store.subscribe((value) =&gt; {</span><span>    <span class="mk-code-block-k">for</span> (<span class="mk-code-block-k">const</span> [name, next] <span class="mk-code-block-k">of</span> Object.entries(value)) {</span><span>      <span class="mk-code-block-k">const</span> field = form.elements.namedItem(name);</span><span>      <span class="mk-code-block-k">if</span> (field <span class="mk-code-block-k">instanceof</span> RadioNodeList) field.value = next;</span><span>      <span class="mk-code-block-k">else</span> <span class="mk-code-block-k">if</span> (field.type === <span class="mk-code-block-s">'checkbox'</span>) field.checked = next;</span><span>      <span class="mk-code-block-k">else</span> <span class="mk-code-block-k">if</span> (field.value !== next) field.value = next;</span><span>    }</span><span>  }, { immediate: <span class="mk-code-block-k">true</span> });</span><span>  <span class="mk-code-block-c">// …</span></span><span>  <span class="mk-code-block-c">// Form → store: one path write per edit, so the devtools log `name: "Ad" → "Ada"`, not a root replacement.</span></span><span>  form.addEventListener(<span class="mk-code-block-s">'input'</span>, (event) =&gt; {</span><span>    <span class="mk-code-block-k">const</span> field = event.target;</span><span>    <span class="mk-code-block-k">if</span> (field.name) store.set(field.name, field.type === <span class="mk-code-block-s">'checkbox'</span> ? field.checked : field.value);</span><span>  });</span></code></pre>
+        <pre data-tab="chat" data-source="demo/chat.js" data-numbers><code><span>  <span class="mk-code-block-c">// Store → view: the draft and the transcript are two selections, so typing never re-renders the thread.</span></span><span>  store.subscribe((chat) =&gt; chat.draft, (text) =&gt; {</span><span>    <span class="mk-code-block-k">if</span> (draft.value !== text) draft.value = text;</span><span>    count.textContent = <span class="mk-code-block-s">`${text.length} / ${LIMITS.draft}`</span>;</span><span>    sendButton.disabled = text.trim() === <span class="mk-code-block-s">''</span>;</span><span>  }, { immediate: <span class="mk-code-block-k">true</span> });</span><span>  <span class="mk-code-block-c">// …</span></span><span>  <span class="mk-code-block-c">// View → store.</span></span><span>  draft.addEventListener(<span class="mk-code-block-s">'input'</span>, () =&gt; store.set(<span class="mk-code-block-s">'draft'</span>, draft.value));</span><span>  <span class="mk-code-block-c">// …</span></span><span>  composer.addEventListener(<span class="mk-code-block-s">'submit'</span>, (event) =&gt; {</span><span>    event.preventDefault();</span><span>    <span class="mk-code-block-k">const</span> text = store.value.draft.trim();</span><span>    <span class="mk-code-block-k">if</span> (!text) <span class="mk-code-block-k">return</span>;</span><span>    store.update((chat) =&gt; send(chat, { id: newId(<span class="mk-code-block-s">'m'</span>), <span class="mk-code-block-k">from</span>: <span class="mk-code-block-s">'you'</span>, text, at: <span class="mk-code-block-k">new</span> Date().toISOString() }));</span><span>    reply();</span><span>  });</span></code></pre>
+        <pre data-tab="notes" data-source="demo/notes.js" data-numbers><code><span>  <span class="mk-code-block-c">// Board → store: paths, so the devtools show which note changed.</span></span><span>  add.addEventListener(<span class="mk-code-block-s">'click'</span>, () =&gt; {</span><span>    <span class="mk-code-block-k">const</span> id = newId(<span class="mk-code-block-s">'n'</span>);</span><span>    store.update((value) =&gt; addNote(value, id));</span><span>    document.getElementById(<span class="mk-code-block-s">`note-${id}-text`</span>)?.focus();</span><span>  });</span><span>  list.addEventListener(<span class="mk-code-block-s">'input'</span>, (event) =&gt; {</span><span>    <span class="mk-code-block-k">const</span> el = event.target.closest(<span class="mk-code-block-s">'.ds-note'</span>);</span><span>    <span class="mk-code-block-k">const</span> path = el &amp;&amp; notePath(store.value, el.dataset.id);</span><span>    <span class="mk-code-block-k">if</span> (!path) <span class="mk-code-block-k">return</span>;</span><span>    store.set(<span class="mk-code-block-s">`${path}.text`</span>, event.target.value);</span><span>    el.querySelector(<span class="mk-code-block-s">'.ds-note-status'</span>).textContent = <span class="mk-code-block-s">`${persistent() ? 'Saved to localStorage' : 'Kept in memory'} · ${clock()}`</span>;</span><span>  });</span><span>  <span class="mk-code-block-c">// …</span></span><span>  list.addEventListener(<span class="mk-code-block-s">'click'</span>, (event) =&gt; {</span><span>    <span class="mk-code-block-k">const</span> button = event.target.closest(<span class="mk-code-block-s">'[data-delete-note]'</span>);</span><span>    <span class="mk-code-block-k">const</span> path = button &amp;&amp; notePath(store.value, button.closest(<span class="mk-code-block-s">'.ds-note'</span>).dataset.id);</span><span>    <span class="mk-code-block-k">if</span> (!path) <span class="mk-code-block-k">return</span>;</span><span>    store.remove(path);</span><span>    add.focus();</span><span>  });</span></code></pre>
+        <pre data-tab="devtools" data-source="demo/devtools.js" data-numbers><code><span>  <span class="mk-code-block-c">/** Subscribe to a store. Call before attaching persistence, so the restore after a reload shows up as a change. */</span></span><span>  <span class="mk-code-block-k">function</span> watch(name, store, { key = <span class="mk-code-block-k">null</span>, origin = <span class="mk-code-block-s">'this page'</span> } = {}) {</span><span>    <span class="mk-code-block-k">const</span> entry = { store, key, persistence: <span class="mk-code-block-k">null</span>, origin };</span><span>    watched.set(name, entry);</span><span>    store.subscribe((next, previous, changedPath) =&gt; {</span><span>      <span class="mk-code-block-k">const</span> change = describeChange(next, previous, changedPath);</span><span>      changes++;</span><span>      total.replaceChildren(...withCode(<span class="mk-code-block-s">`${changes} ${changes === 1 ? 'change' : 'changes'} via store.subscribe()`</span>));</span><span>      line(name, <span class="mk-code-block-s">`${change.path}: ${change.before} → ${change.after}`</span>, tones[change.kind]);</span><span>      schedule();</span><span>    });</span><span>    <span class="mk-code-block-k">return</span> entry;</span><span>  }</span></code></pre>
+        <pre data-tab="app" data-source="demo/app.js" data-numbers><code><span><span class="mk-code-block-k">for</span> (<span class="mk-code-block-k">const</span> demo <span class="mk-code-block-k">of</span> Object.values(demos)) {</span><span>  <span class="mk-code-block-k">const</span> entry = devtools.watch(demo.name, demo.store, { key: demo.key });</span><span>  <span class="mk-code-block-k">const</span> saved = $(<span class="mk-code-block-s">`panel-${demo.name}`</span>).querySelector(<span class="mk-code-block-s">'[data-saved]'</span>);</span><span>  demo.store.subscribe(() =&gt; { saved.textContent = <span class="mk-code-block-s">`${persistent() ? 'Saved' : 'In memory'} · ${clock()}`</span>; });</span><span>  demo.persistence = persist(demo.store, demo.key, demo.validate, (failure) =&gt; {</span><span>    saved.textContent = <span class="mk-code-block-s">`Not saved: ${failure.operation} failed`</span>;</span><span>    devtools.note(demo.name, <span class="mk-code-block-s">`persistence ${failure.operation} failed: ${failure.error?.message ?? failure.error}`</span>, <span class="mk-code-block-s">'destructive'</span>);</span><span>  });</span><span>  entry.persistence = demo.persistence;</span><span><span class="mk-code-block-c">// …</span></span><span><span class="mk-code-block-c">// Which tab is open is state too: a persisted ui store, bound to the tablist's State API with bindState().</span></span><span><span class="mk-code-block-k">const</span> ui = createStore(defaults.ui);</span><span>devtools.watch(<span class="mk-code-block-s">'ui'</span>, ui, { key: KEYS.ui }).persistence = persist(ui, KEYS.ui, isUi, (failure) =&gt; {</span><span>  devtools.note(<span class="mk-code-block-s">'ui'</span>, <span class="mk-code-block-s">`persistence ${failure.operation} failed: ${failure.error?.message ?? failure.error}`</span>, <span class="mk-code-block-s">'destructive'</span>);</span><span>});</span><span><span class="mk-code-block-k">const</span> tablist = $(<span class="mk-code-block-s">'demo-tabs'</span>);</span><span>bindState(tablist, ui, {</span><span>  select: (value) =&gt; value.tab,</span><span>  toState: (tab) =&gt; ({ name: <span class="mk-code-block-s">'active'</span>, config: { id: <span class="mk-code-block-s">`tab-${tab}`</span> } }),</span><span>  fromState: (state, current) =&gt; {</span><span>    <span class="mk-code-block-k">const</span> tab = String(state.config.id ?? <span class="mk-code-block-s">''</span>).replace(/^tab-/, <span class="mk-code-block-s">''</span>);</span><span>    <span class="mk-code-block-k">return</span> TABS.includes(tab) ? { ...current, tab } : current;</span><span>  },</span><span>});</span><span>ui.subscribe((value) =&gt; value.tab, (tab) =&gt; devtools.focus(tab), { immediate: <span class="mk-code-block-k">true</span> });</span><span><span class="mk-code-block-c">// …</span></span><span><span class="mk-code-block-c">// defuss-shadcn components keep their own state in defuss-store stores, exposed as el.store: subscribe like any store.</span></span><span>devtools.watch(<span class="mk-code-block-s">'tabs.store'</span>, tablist.store, { origin: <span class="mk-code-block-s">'defuss-shadcn tabs (el.store)'</span> });</span><span>devtools.watch(<span class="mk-code-block-s">'layout.store'</span>, $(<span class="mk-code-block-s">'layout'</span>).store, { origin: <span class="mk-code-block-s">'defuss-shadcn border layout (el.store)'</span>, key: <span class="mk-code-block-s">'data-save="defuss-store-docs:layout"'</span> });</span></code></pre>
+        <span class="mk-code-block-status" role="status"></span>
+      </figure>
+    </div>
+  </section>
+
+  <section id="how" class="container ds-section parallax-reveal" aria-labelledby="how-title">
+    <section class="mk-features" style="width:100%">
+      <div class="mk-features-head">
+        <span class="mk-features-eyebrow">How it works</span>
+        <h2 class="mk-features-title" id="how-title">💡 One store <code>commit()</code> - consistency follows</h2>
+        <p class="mk-features-desc">A write compares, installs the new snapshot and queues one transition. Listeners drain in order; persistence is one of them, so the value is validated and stored before <code>set()</code> returns. Other tabs read the new bytes from their own storage event.</p>
+      </div>
+      <figure class="diagram ds-flow" id="flow" data-type="flow" data-steps data-autoplay="400" aria-label="The path of one write through a persisted store">
+        <div class="diagram-canvas" style="--cols:5">
+          <div class="diagram-node" data-node="write" data-shape="pill" style="--col:1;--row:1"><span class="diagram-node-name"><code>set(path, value)</code></span></div>
+          <div class="diagram-node" data-node="equal" data-shape="diamond" style="--col:2;--row:1"><span class="diagram-node-name">Equal?</span></div>
+          <div class="diagram-node" data-node="skip" data-tone="muted" style="--col:3;--row:1"><span class="diagram-node-name">No change</span><span class="diagram-node-meta">no snapshot, no listener</span></div>
+          <div class="diagram-node" data-node="commit" data-tone="accent" style="--col:2;--row:2"><span class="diagram-node-eyebrow">Commit</span><span class="diagram-node-name">New snapshot</span><span class="diagram-node-meta">touched ancestors copied</span></div>
+          <div class="diagram-node" data-node="notify" style="--col:3;--row:2"><span class="diagram-node-eyebrow">Notify</span><span class="diagram-node-name">Listeners, FIFO</span><span class="diagram-node-meta">(next, previous, changedPath)</span></div>
+          <div class="diagram-node" data-node="validate" data-shape="diamond" style="--col:4;--row:2"><span class="diagram-node-name"><code>validate()</code></span></div>
+          <div class="diagram-node" data-node="error" data-tone="warn" style="--col:5;--row:2"><span class="diagram-node-name">onError</span><span class="diagram-node-meta">memory kept, dirty, retried</span></div>
+          <div class="diagram-node" data-node="store" data-shape="store" style="--col:4;--row:3"><span class="diagram-node-name">localStorage</span><span class="diagram-node-meta">versioned envelope</span></div>
+          <div class="diagram-node" data-node="tab" data-tone="ok" style="--col:3;--row:3"><span class="diagram-node-eyebrow">sync: true</span><span class="diagram-node-name">Other tabs</span><span class="diagram-node-meta">storage event → reread</span></div>
+        </div>
+        <ol class="diagram-edges">
+          <li class="diagram-edge" data-from="write" data-to="equal"></li>
+          <li class="diagram-edge" data-from="equal" data-to="skip">yes</li>
+          <li class="diagram-edge" data-from="equal" data-to="commit" data-tone="accent">no</li>
+          <li class="diagram-edge" data-from="commit" data-to="notify" data-tone="accent"></li>
+          <li class="diagram-edge" data-from="notify" data-to="validate">persistence</li>
+          <li class="diagram-edge" data-from="validate" data-to="error">rejected / quota</li>
+          <li class="diagram-edge" data-from="validate" data-to="store" data-tone="accent">valid</li>
+          <li class="diagram-edge" data-from="store" data-to="tab" data-line="dashed"></li>
+        </ol>
+      </figure>
+    </section>
+
+    <div class="ds-how-grid">
+      <div>
+        <h3 class="ds-subtitle">What a reload finds</h3>
+        <ul class="ds-outcomes">
+          <li class="ds-outcome"><span class="ds-status" data-status="ok">restored</span><p>Valid bytes of the current version are in memory when <code>attachPersistence()</code> returns, and writes resume.</p><code>phase: 'active'</code></li>
+          <li class="ds-outcome"><span class="ds-status" data-status="ok">migrated</span><p>Data of an older version goes through <code>migrate(old, fromVersion)</code>, is validated, and stays dirty until the next save.</p><code>dirty: true</code></li>
+          <li class="ds-outcome"><span class="ds-status" data-status="neutral">missing</span><p>Nothing is stored: memory keeps its defaults and nothing is written until something changes.</p><code>hasStoredValue: false</code></li>
+          <li class="ds-outcome"><span class="ds-status" data-status="warn">paused</span><p>Bad JSON, a rejected value or a future version: the bytes stay untouched and automatic writes pause.</p><code>phase: 'paused', lastError</code></li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="ds-subtitle">Recovery is explicit</h3>
+        <ol class="mk-process-steps">
+          <li class="mk-process-step">
+            <span class="mk-process-step-number" aria-hidden="true">01</span>
+            <div class="mk-process-step-body">
+              <h4 class="mk-process-step-title"><code>rehydrate()</code></h4>
+              <p class="mk-process-step-desc">Read the key again after fixing it; saved state wins, a missing key keeps memory.</p>
+            </div>
+          </li>
+          <li class="mk-process-step">
+            <span class="mk-process-step-number" aria-hidden="true">02</span>
+            <div class="mk-process-step-body">
+              <h4 class="mk-process-step-title"><code>flush()</code></h4>
+              <p class="mk-process-step-desc">Validate and save what is in memory, replacing the bad bytes on purpose.</p>
+            </div>
+          </li>
+          <li class="mk-process-step">
+            <span class="mk-process-step-number" aria-hidden="true">03</span>
+            <div class="mk-process-step-body">
+              <h4 class="mk-process-step-title"><code>clear()</code></h4>
+              <p class="mk-process-step-desc">Remove only this key. Memory keeps its state; the next change writes again.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section id="defuss" class="container ds-section parallax-reveal" aria-labelledby="defuss-title">
+    <header class="mk-section-header">
+      <div class="mk-section-header-copy">
+        <span class="mk-section-header-eyebrow">With or without defuss</span>
+        <h2 class="mk-section-header-title" id="defuss-title">🔌 Plain JavaScript first, defuss when you want it</h2>
+        <p class="mk-section-header-desc">The store library doesn't require any specific framework to be integrated with. In a web app that uses <code>defuss-shadcn</code>, it is already loaded, as <code>df$.store</code> is populated and as every JS component's API exposes <code>el.store</code>, <code>setState()</code> and <code>getState()</code> as well as <code>render()</code> to re-render after state change.</p>
+      </div>
+    </header>
+    <div class="ds-paths">
+      <article class="card ds-path">
+        <div class="card-header">
+          <h3 class="card-title"><svg class="ds-icon" aria-hidden="true"><use href="#i-package"/></svg>Without defuss</h3>
+          <p class="card-description">Any app, any bundler or none.</p>
+        </div>
+        <div class="card-content">
+          <ul class="ds-facts">
+            <li><code>npm install defuss-store</code>, then import <code>defuss-store</code>, <code>/storage</code>, <code>/persist</code> or <code>/bind</code> - each layer alone.</li>
+            <li>Or one file in the browser: <code>dist/browser.js</code> bundles every layer and imports nothing.</li>
+            <li>Node 22.12+ for SSR; declarations for TypeScript; ESM only.</li>
+            <li>Use the raw API directly.</li>
+          </ul>
+        </div>
+      </article>
+      <article class="card ds-path">
+        <div class="card-header">
+          <h3 class="card-title"><svg class="ds-icon" aria-hidden="true"><use href="#i-plug"/></svg>With defuss</h3>
+          <p class="card-description">defuss-shadcn pages and defuss apps.</p>
+        </div>
+        <div class="card-content">
+          <ul class="ds-facts">
+            <li>defuss-shadcn's <code>core.js</code> ships it as <code>df$.store.create</code>, <code>computed</code> and <code>persisted</code>.</li>
+            <li>Every component's state is a store: <code>el.store.subscribe()</code> sees clicks and Escape, <code>el.store.set()</code> drives it.</li>
+            <li><code>bindState()</code> ties your own (persisted) store to any component's State API.</li>
+            <li>In defuss JSX, subscribe in <code>onMount</code> and unsubscribe in <code>onUnmount</code>.</li>
+          </ul>
+        </div>
+      </article>
+    </div>
+    <figure class="mk-code-block" data-variant="file" id="defuss-code">
+      <div class="mk-code-block-head">
+        <div class="mk-code-block-tabs" role="radiogroup" aria-label="Environment">
+          <label><input type="radio" name="cb-env" value="ts" checked>TypeScript</label><label><input type="radio" name="cb-env" value="esm">Browser, no bundler</label><label><input type="radio" name="cb-env" value="dfstore">df$.store</label><label><input type="radio" name="cb-env" value="elstore">el.store</label><label><input type="radio" name="cb-env" value="bind"><code>bindState()</code></label><label><input type="radio" name="cb-env" value="jsx">defuss JSX</label>
+        </div>
+        <button class="mk-code-block-copy" type="button" aria-label="Copy code"><svg class="ds-icon" aria-hidden="true"><use href="#i-copy"/></svg></button>
+      </div>
+      <pre data-tab="ts" data-numbers><code><span><span class="mk-code-block-k">import</span> { createStore } <span class="mk-code-block-k">from</span> <span class="mk-code-block-s">'defuss-store'</span>;</span><span><span class="mk-code-block-k">import</span> { createMemoryStorage, createWebStorage } <span class="mk-code-block-k">from</span> <span class="mk-code-block-s">'defuss-store/storage'</span>;</span><span><span class="mk-code-block-k">import</span> { attachPersistence } <span class="mk-code-block-k">from</span> <span class="mk-code-block-s">'defuss-store/persist'</span>;</span><span></span><span><span class="mk-code-block-k">type</span> Prefs = { theme: <span class="mk-code-block-s">'light'</span> | <span class="mk-code-block-s">'dark'</span>; pageSize: number };</span><span><span class="mk-code-block-k">const</span> isPrefs = (value: unknown): value <span class="mk-code-block-k">is</span> Prefs =&gt; {</span><span>  <span class="mk-code-block-k">const</span> v = value <span class="mk-code-block-k">as</span> Partial&lt;Prefs&gt; | <span class="mk-code-block-k">null</span>;</span><span>  <span class="mk-code-block-k">return</span> v?.theme === <span class="mk-code-block-s">'light'</span> || v?.theme === <span class="mk-code-block-s">'dark'</span> ? Number.isInteger(v.pageSize) : <span class="mk-code-block-k">false</span>;</span><span>};</span><span></span><span><span class="mk-code-block-k">const</span> prefs = createStore&lt;Prefs&gt;({ theme: <span class="mk-code-block-s">'light'</span>, pageSize: 20 });</span><span>attachPersistence(prefs, {</span><span>  key: <span class="mk-code-block-s">'my-app:prefs'</span>, version: 1, validate: isPrefs,</span><span>  storage: createWebStorage(<span class="mk-code-block-s">'local'</span>, { fallback: createMemoryStorage() }),</span><span>});</span><span></span><span>prefs.subscribe((p) =&gt; p.pageSize, (size) =&gt; console.log(<span class="mk-code-block-s">'page size'</span>, size));</span><span>prefs.set(<span class="mk-code-block-s">'pageSize'</span>, 50); <span class="mk-code-block-c">// committed, logged and stored before this line returns</span></span></code></pre>
+      <pre data-tab="esm" data-numbers><code><span><span class="mk-code-block-k">&lt;button&gt;</span>Clicked <span class="mk-code-block-k">&lt;output&gt;</span>0<span class="mk-code-block-k">&lt;/output&gt;</span> times<span class="mk-code-block-k">&lt;/button&gt;</span></span><span><span class="mk-code-block-k">&lt;script</span> type=<span class="mk-code-block-s">"module"</span><span class="mk-code-block-k">&gt;</span></span><span>  <span class="mk-code-block-k">import</span> { attachPersistence, createStore, createWebStorage }</span><span>    <span class="mk-code-block-k">from</span> <span class="mk-code-block-s">'https://cdn.jsdelivr.net/npm/defuss-store@0.1.0/dist/browser.min.js'</span>;</span><span></span><span>  <span class="mk-code-block-k">const</span> clicks = createStore(0);</span><span>  attachPersistence(clicks, {</span><span>    key: <span class="mk-code-block-s">'clicks'</span>, version: 1, storage: createWebStorage(<span class="mk-code-block-s">'local'</span>),</span><span>    validate: (value) =&gt; Number.isSafeInteger(value),</span><span>  });</span><span>  clicks.subscribe((n) =&gt; { document.querySelector(<span class="mk-code-block-s">'output'</span>).value = n; }, { immediate: <span class="mk-code-block-k">true</span> });</span><span>  document.querySelector(<span class="mk-code-block-s">'button'</span>).onclick = () =&gt; clicks.update((n) =&gt; n + 1);</span><span><span class="mk-code-block-k">&lt;/script&gt;</span></span></code></pre>
+      <pre data-tab="dfstore" data-numbers><code><span><span class="mk-code-block-c">// defuss-shadcn's core.js (or all.js) ships defuss-store as df$.store - nothing to import.</span></span><span><span class="mk-code-block-k">const</span> count = df$.store.create(0);</span><span>count.subscribe((n) =&gt; console.log(<span class="mk-code-block-s">'count'</span>, n));</span><span>count.set(1);                       <span class="mk-code-block-c">// → count 1</span></span><span></span><span><span class="mk-code-block-c">// a value kept in localStorage: validated against the initial shape, in memory when storage is blocked</span></span><span><span class="mk-code-block-k">const</span> prefs = df$.store.persisted(<span class="mk-code-block-s">'my-app:prefs'</span>, { compact: <span class="mk-code-block-k">false</span> });</span><span>prefs.subscribe((p) =&gt; df$(<span class="mk-code-block-s">'html'</span>).toggleClass(<span class="mk-code-block-s">'compact'</span>, p.compact));</span><span>prefs.set(<span class="mk-code-block-s">'compact'</span>, <span class="mk-code-block-k">true</span>);         <span class="mk-code-block-c">// a path write; stored at once</span></span></code></pre>
+      <pre data-tab="elstore" data-numbers><code><span><span class="mk-code-block-c">// Every defuss-shadcn component keeps its state in a defuss-store store: { name, config }.</span></span><span><span class="mk-code-block-k">const</span> dialog = df$(<span class="mk-code-block-s">'#confirm'</span>).get(0);</span><span></span><span><span class="mk-code-block-c">// Subscribers see every change, also the ones without setState: a trigger, Escape, the backdrop.</span></span><span>dialog.store.subscribe(({ name }) =&gt; console.log(<span class="mk-code-block-s">'dialog is'</span>, name));</span><span></span><span><span class="mk-code-block-c">// Writing the store drives the component exactly like api.setState('open').</span></span><span>dialog.store.set({ name: <span class="mk-code-block-s">'open'</span>, config: {} });</span></code></pre>
+      <pre data-tab="bind" data-numbers><code><span><span class="mk-code-block-k">import</span> { attachPersistence, bindState, createStore, createWebStorage } <span class="mk-code-block-k">from</span> <span class="mk-code-block-s">'defuss-store/browser'</span>;</span><span></span><span><span class="mk-code-block-k">const</span> ui = createStore({ tab: <span class="mk-code-block-s">'account'</span> });</span><span>attachPersistence(ui, {</span><span>  key: <span class="mk-code-block-s">'my-app:ui'</span>, version: 1, storage: createWebStorage(<span class="mk-code-block-s">'local'</span>),</span><span>  validate: (value) =&gt; <span class="mk-code-block-k">typeof</span> value?.tab === <span class="mk-code-block-s">'string'</span>,</span><span>});</span><span><span class="mk-code-block-c">// Attach persistence first: the restored tab then initializes the component.</span></span><span>bindState(document.querySelector(<span class="mk-code-block-s">'#settings-tabs'</span>), ui, {</span><span>  select: (value) =&gt; value.tab,</span><span>  toState: (tab) =&gt; ({ name: <span class="mk-code-block-s">'active'</span>, config: { id: tab } }),</span><span>  fromState: (state, current) =&gt; ({ ...current, tab: String(state.config.id) }),</span><span>});</span><span>ui.set(<span class="mk-code-block-s">'tab'</span>, <span class="mk-code-block-s">'billing'</span>); <span class="mk-code-block-c">// clicks, arrow keys and this call all agree - and survive a reload</span></span></code></pre>
+      <pre data-tab="jsx" data-numbers><code><span><span class="mk-code-block-k">import</span> { createRef } <span class="mk-code-block-k">from</span> <span class="mk-code-block-s">'defuss'</span>;</span><span><span class="mk-code-block-c">// defuss has an older createStore of its own: import this one by package name.</span></span><span><span class="mk-code-block-k">import</span> { createStore } <span class="mk-code-block-k">from</span> <span class="mk-code-block-s">'defuss-store'</span>;</span><span></span><span><span class="mk-code-block-k">const</span> cart = createStore({ count: 0 });</span><span></span><span><span class="mk-code-block-k">export function</span> CartCount() {</span><span>  <span class="mk-code-block-k">const</span> out = createRef&lt;HTMLOutputElement&gt;();</span><span>  <span class="mk-code-block-k">let</span> off = () =&gt; {};</span><span>  <span class="mk-code-block-k">return</span> (</span><span>    <span class="mk-code-block-k">&lt;output</span></span><span>      ref={out}</span><span>      onMount={() =&gt; {</span><span>        off = cart.subscribe((c) =&gt; c.count, (n) =&gt; { out.current.textContent = String(n); }, { immediate: <span class="mk-code-block-k">true</span> });</span><span>      }}</span><span>      onUnmount={() =&gt; off()}</span><span>    <span class="mk-code-block-k">/&gt;</span></span><span>  );</span><span>}</span></code></pre>
+      <span class="mk-code-block-status" role="status"></span>
+    </figure>
+  </section>
+
+  <section id="api" class="container ds-section parallax-reveal" aria-labelledby="api-title">
+    <header class="mk-section-header">
+      <div class="mk-section-header-copy">
+        <span class="mk-section-header-eyebrow">API</span>
+        <h2 class="mk-section-header-title" id="api-title">📚 Small API surface</h2>
+        <p class="mk-section-header-desc">Five exported package entrypoints, each importable on it's own. The source of truth is the <a href="https://github.com/kyr0/defuss-store/blob/main/README.md" target="_blank" rel="noopener">README<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a> and <a href="https://github.com/kyr0/defuss-store/blob/main/src/types.ts" target="_blank" rel="noopener">src/types.ts<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a>.</p>
+      </div>
+    </header>
+
+    <div class="tabs ds-api">
+      <div class="tab-list" role="tablist" aria-label="API reference" data-size="lg">
+        <button class="tab-trigger" role="tab" aria-selected="true" aria-controls="api-store" id="tab-store">Store</button>
+        <button class="tab-trigger" role="tab" aria-selected="false" aria-controls="api-computed" id="tab-computed" tabindex="-1"><code>computed()</code></button>
+        <button class="tab-trigger" role="tab" aria-selected="false" aria-controls="api-storage" id="tab-storage" tabindex="-1">Storage</button>
+        <button class="tab-trigger" role="tab" aria-selected="false" aria-controls="api-persist" id="tab-persist" tabindex="-1">Persistence</button>
+        <button class="tab-trigger" role="tab" aria-selected="false" aria-controls="api-bind" id="tab-bind" tabindex="-1"><code>bindState()</code></button>
+        <button class="tab-trigger" role="tab" aria-selected="false" aria-controls="api-entries" id="tab-entries" tabindex="-1">Entry points</button>
+      </div>
+
+      <div class="tab-content" role="tabpanel" id="api-store" aria-labelledby="tab-store" tabindex="0">
+        <p class="ds-api-lead"><code>createStore(initial, { equals? })</code> returns a writable store. Equality is <code>Object.is</code> by default: an equal write keeps the old reference and notifies nobody.</p>
+        <div class="table-container">
+          <table class="table ds-table">
+            <thead><tr class="table-row"><th class="table-head">Member</th><th class="table-head">Behavior</th></tr></thead>
+            <tbody>
+              <tr class="table-row"><td class="table-cell"><code>.value</code>, <code>.get()</code>, <code>.getRaw()</code></td><td class="table-cell">The current snapshot, by reference. Treat it as immutable: mutating it in place is not observed.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>.get('field')</code></td><td class="table-cell">A known top-level key keeps its TypeScript type.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>.get('items[0].name')</code></td><td class="table-cell">A dynamic path returns <code>unknown</code>; own properties only.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>.set(next)</code>, <code>.setRaw(next)</code></td><td class="table-cell">Replace the root, including <code>null</code> or <code>undefined</code> when <code>T</code> allows it.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>.set(path, next)</code></td><td class="table-cell">Copy the touched ancestors, keep every other reference. Dot or bracket paths: <code>items.0.name</code>, <code>items[0].name</code>.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>.remove(path)</code>, <code>.set(path, undefined)</code></td><td class="table-cell">Delete an object property or splice an array index.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>.update(fn)</code></td><td class="table-cell">Replace with <code>fn(current)</code>, synchronously. A throwing updater changes nothing.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>.reset()</code>, <code>.reset(next)</code></td><td class="table-cell">Restore the initial reference (not a deep clone), or replace with the explicit argument.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>.subscribe(listener, { immediate? })</code></td><td class="table-cell">Receives <code>(next, previous, changedPath)</code>; returns an idempotent unsubscribe.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>.subscribe(selector, listener, { equals?, immediate? })</code></td><td class="table-cell">Notifies only when the selected result changes.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>.onDestroy(cleanup)</code>, <code>.destroy()</code></td><td class="table-cell">Register cleanup; destroy idempotently. The last snapshot stays readable.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="accordion ds-accordion">
+          <details class="accordion-item" open>
+            <summary class="accordion-trigger"><span>Reentrant writes and listener errors</span><svg class="accordion-chevron ds-icon" aria-hidden="true"><use href="#i-chevron"/></svg></summary>
+            <div class="accordion-content">
+              <p>A write inside a listener commits at once; its notification is queued and the queue drains first in, first out. While an earlier callback runs, <code>.value</code> can already hold a later value - use the callback's <code>next</code> argument. Removed listeners are skipped; new ones see only later commits. Listener errors do not stop other listeners or persistence: an <code>AggregateError</code> is thrown after the queue drains. There is no rollback or transaction API.</p>
+            </div>
+          </details>
+          <details class="accordion-item">
+            <summary class="accordion-trigger"><span>Paths</span><svg class="accordion-chevron ds-icon" aria-hidden="true"><use href="#i-chevron"/></svg></summary>
+            <div class="accordion-content">
+              <p>Paths work on plain objects and arrays with nonnegative indices. Empty writes, malformed paths, inherited traversal and the segments <code>__proto__</code>, <code>prototype</code> and <code>constructor</code> are rejected before anything changes. Dynamic path setters are not compile-time schema validation; prefer a typed <code>update()</code> for that.</p>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <div class="tab-content" role="tabpanel" id="api-computed" aria-labelledby="tab-computed" tabindex="0" hidden>
+        <p class="ds-api-lead"><code>computed(source, project, { equals? })</code> and <code>computed([a, b] as const, (a, b) =&gt; result)</code> return a read-only store.</p>
+        <div class="table-container">
+          <table class="table ds-table">
+            <thead><tr class="table-row"><th class="table-head">Topic</th><th class="table-head">Contract</th></tr></thead>
+            <tbody>
+              <tr class="table-row"><td class="table-cell">Evaluation</td><td class="table-cell">The projection runs eagerly and again on every source change.</td></tr>
+              <tr class="table-row"><td class="table-cell">Failures</td><td class="table-cell">A throwing projection keeps the last result and reports with the source's errors.</td></tr>
+              <tr class="table-row"><td class="table-cell">Lifetime</td><td class="table-cell"><code>.destroy()</code> detaches early; destroying any source destroys the derived store too.</td></tr>
+              <tr class="table-row"><td class="table-cell">Several sources</td><td class="table-cell">Not batched and not glitch-free across sources: each source change recomputes.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>jsonEquals(a, b)</code></td><td class="table-cell">Compares <code>JSON.stringify</code> results: key-order sensitive, and it can throw on non-JSON values.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-content" role="tabpanel" id="api-storage" aria-labelledby="tab-storage" tabindex="0" hidden>
+        <p class="ds-api-lead"><code>defuss-store/storage</code>: synchronous string backends and the strict JSON codec. Importing it acquires no browser storage.</p>
+        <div class="table-container">
+          <table class="table ds-table">
+            <thead><tr class="table-row"><th class="table-head">Export</th><th class="table-head">Contract</th></tr></thead>
+            <tbody>
+              <tr class="table-row"><td class="table-cell"><code>createWebStorage('local' | 'session', { fallback?, onUnavailable? })</code></td><td class="table-cell">Acquires the area on first use. A supplied fallback is used only if acquiring fails, and then for good; a quota error never switches backends.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>createMemoryStorage()</code></td><td class="table-cell">A fresh, isolated map every time. Share one instance on purpose. No events, so no sync.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>jsonCodec</code></td><td class="table-cell">Checks the whole envelope first. Rejects cycles, <code>undefined</code>, <code>BigInt</code>, functions, dates, maps, non-finite numbers, <code>-0</code>, accessors and sparse arrays instead of losing them silently.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>StorageBackend</code></td><td class="table-cell"><code>getItem</code>, <code>setItem</code>, <code>removeItem</code> and an optional <code>subscribe</code> for remote invalidation - implement it for any other store.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-content" role="tabpanel" id="api-persist" aria-labelledby="tab-persist" tabindex="0" hidden>
+        <p class="ds-api-lead"><code>attachPersistence(store, { key, storage, version, validate, migrate?, legacyVersion?, codec?, hydrate?, sync?, onError? })</code> returns a controller. One controller owns a store at a time; destroying the store disposes it.</p>
+        <div class="table-container">
+          <table class="table ds-table">
+            <thead><tr class="table-row"><th class="table-head">Option / method</th><th class="table-head">Contract</th></tr></thead>
+            <tbody>
+              <tr class="table-row"><td class="table-cell"><code>hydrate: 'immediate'</code> (default)</td><td class="table-cell">Read and validate before automatic writes start.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>hydrate: 'manual'</code></td><td class="table-cell">Writes and remote reads wait for <code>rehydrate()</code>, <code>flush()</code> or <code>clear()</code>.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>hydrate: 'skip'</code></td><td class="table-cell">Writes on, no read; nothing is written until a change or <code>flush()</code>.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>migrate(old, fromVersion)</code></td><td class="table-cell">Returns the current schema; its output is validated. Future versions are never downgraded.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>sync: true</code></td><td class="table-cell">Follows the selected area's storage events for this key; rereads the current bytes and never echoes.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>rehydrate()</code></td><td class="table-cell">Read again: saved state wins, a missing key keeps memory.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>flush()</code></td><td class="table-cell">Validate and save memory; recovers paused persistence on purpose.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>clear()</code></td><td class="table-cell">Remove only this key; the next real change may write it again.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>status()</code></td><td class="table-cell"><code>{ phase, dirty, hasStoredValue, lastError? }</code></td></tr>
+              <tr class="table-row"><td class="table-cell"><code>destroy()</code></td><td class="table-cell">Unsubscribe without writing or deleting; never flushes implicitly.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="accordion ds-accordion">
+          <details class="accordion-item" open>
+            <summary class="accordion-trigger"><span>The stored envelope</span><svg class="accordion-chevron ds-icon" aria-hidden="true"><use href="#i-chevron"/></svg></summary>
+            <div class="accordion-content">
+              <p><code>{ "format": "defuss-store", "formatVersion": 1, "version": 1, "value": … }</code>. The schema <code>version</code> is a nonnegative safe integer. Raw JSON from the old defuss store is read through <code>legacyVersion</code> and rewritten in the envelope on the next write.</p>
+            </div>
+          </details>
+          <details class="accordion-item">
+            <summary class="accordion-trigger"><span>Errors and quota</span><svg class="accordion-chevron ds-icon" aria-hidden="true"><use href="#i-chevron"/></svg></summary>
+            <div class="accordion-content">
+              <p><code>rehydrate()</code>, <code>flush()</code> and <code>clear()</code> return <code>true</code> on success and <code>false</code> on a reported failure. A write or quota error keeps the committed memory, marks it dirty and reports through <code>onError</code>; the next change or <code>flush()</code> retries. Without <code>onError</code>, failures go to <code>console.error</code>.</p>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <div class="tab-content" role="tabpanel" id="api-bind" aria-labelledby="tab-bind" tabindex="0" hidden>
+        <p class="ds-api-lead"><code>bindState(element, store, { select, toState, fromState, ... })</code> binds one store selection to a component's State API, both ways. It returns a callable disposer with <code>pull()</code> and <code>push()</code>.</p>
+        <div class="table-container">
+          <table class="table ds-table">
+            <thead><tr class="table-row"><th class="table-head">Option</th><th class="table-head">Contract</th></tr></thead>
+            <tbody>
+              <tr class="table-row"><td class="table-cell"><code>select</code>, <code>toState</code>, <code>fromState</code></td><td class="table-cell">The slice this component owns, how it becomes a component state, and how the effective state goes back into the store.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>initial</code></td><td class="table-cell"><code>'store'</code> (default) applies the store to the element; <code>'element'</code> reads the element first.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>equals</code></td><td class="table-cell">Selection equality in both directions; it is what stops pushes and observations from echoing.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>signal</code></td><td class="table-cell">Aborting releases everything, like calling the disposer or destroying the store.</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>events</code>, <code>observe</code>, <code>sources</code>, <code>onError</code></td><td class="table-cell">Extra component events, the mutation observer, which change sources count, and errors of coalesced observations.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="ds-api-lead">Rejected or clamped requests - a disabled tab, an out-of-range page - are normalized back into the store. API calls are observed synchronously; events and attribute changes are coalesced into a microtask. Removing the element alone does not dispose the binding.</p>
+      </div>
+
+      <div class="tab-content" role="tabpanel" id="api-entries" aria-labelledby="tab-entries" tabindex="0" hidden>
+        <div class="table-container">
+          <table class="table ds-table">
+            <thead><tr class="table-row"><th class="table-head">Import</th><th class="table-head">Contents</th><th class="table-head">Gzip, bundled alone</th></tr></thead>
+            <tbody>
+              <tr class="table-row"><td class="table-cell"><code>defuss-store</code></td><td class="table-cell">createStore, computed, jsonEquals and the store types</td><td class="table-cell" data-stat="index.bundledGzipBytes" data-unit="B">1,853 B</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>defuss-store/storage</code></td><td class="table-cell">Web and memory storage, the strict JSON codec</td><td class="table-cell" data-stat="storage/index.bundledGzipBytes" data-unit="B">1,095 B</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>defuss-store/persist</code></td><td class="table-cell">attachPersistence and its types</td><td class="table-cell" data-stat="persist/index.bundledGzipBytes" data-unit="B">1,972 B</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>defuss-store/bind</code></td><td class="table-cell">bindState and the State API types</td><td class="table-cell" data-stat="bind/index.bundledGzipBytes" data-unit="B">1,048 B</td></tr>
+              <tr class="table-row"><td class="table-cell"><code>defuss-store/browser</code></td><td class="table-cell">Everything above in one self-contained ESM file</td><td class="table-cell" data-stat="browser.bundledGzipBytes" data-unit="B">4,702 B</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="ds-api-lead">Every entry imports without browser globals, and the core, storage and persistence declarations typecheck without DOM libraries. On a server, create stores per request: never export a mutable user store from a module.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="numbers" class="container ds-section parallax-reveal" aria-labelledby="numbers-title">
+    <section class="mk-stats" style="width:100%">
+      <div class="mk-stats-layout">
+        <div class="mk-stats-copy">
+          <div class="mk-stats-head">
+            <h2 class="mk-stats-title" id="numbers-title">Small, and measured</h2>
+            <p class="mk-stats-desc">Sizes are <code>make metrics</code> output for the <span data-version>v0.1.0</span> build: each entry bundled alone, minified and gzipped. Coverage is <code>make coverage</code>, rounded down. <code>scripts/verify.ts</code> fails the release when a number here differs from <code>dist/stats.json</code> or the coverage report.</p>
+          </div>
+          <div class="mk-stats-grid">
+            <div class="mk-stat"><span class="mk-stat-value"><span data-stat="browser.bundledGzipBytes" data-unit="B">4,702 B</span> <span class="badge" data-variant="secondary" data-size="sm">gzip</span></span><span class="mk-stat-label">every layer: store, storage, persistence and bindings</span></div>
+            <div class="mk-stat"><span class="mk-stat-value"><span data-stat="index.bundledGzipBytes" data-unit="B">1,853 B</span> <span class="badge" data-variant="secondary" data-size="sm">gzip</span></span><span class="mk-stat-label">the core alone: stores, paths, selectors, computed</span></div>
+            <div class="mk-stat"><span class="mk-stat-value">0</span><span class="mk-stat-label">runtime dependencies, checked by the release gate</span></div>
+            <div class="mk-stat"><span class="mk-stat-value"><span data-coverage="lines">98</span>&nbsp;% <span class="badge" data-variant="secondary" data-size="sm">lines</span></span><span class="mk-stat-label">unit-test line coverage of core, storage and persistence (<span data-coverage="branches">95</span>&nbsp;% of branches); bindings are tested in Chromium</span></div>
+          </div>
+        </div>
+        <figure class="mk-stats-media ds-metrics">
+          <div class="mockup-code" data-chrome="mac" data-title="defuss-store" data-wrap>
+            <pre data-prefix="$"><code>make metrics</code></pre>
+            <pre data-prefix=""><code>"index":   … "bundledGzipBytes": <span data-stat="index.bundledGzipBytes">1853</span></code></pre>
+            <pre data-prefix=""><code>"persist": … "bundledGzipBytes": <span data-stat="persist/index.bundledGzipBytes">1972</span></code></pre>
+            <pre data-prefix=""><code>"browser": … "bundledGzipBytes": <span data-stat="browser.bundledGzipBytes">4702</span></code></pre>
+            <pre data-prefix="$"><code>npm pkg get dependencies</code></pre>
+            <pre data-prefix="" data-tone="success"><code>{}</code></pre>
+          </div>
+          <figcaption class="ds-figcaption">Measured by <code>scripts/stats.ts</code> with esbuild and <code>zlib</code> gzip; abbreviated to the gzip sizes.</figcaption>
+        </figure>
+      </div>
+    </section>
+  </section>
+
+  <section id="scaling" class="container ds-section parallax-reveal" aria-labelledby="scaling-title">
+    <header class="mk-section-header">
+      <div class="mk-section-header-copy">
+        <span class="mk-section-header-eyebrow">Benchmarks</span>
+        <h2 class="mk-section-header-title" id="scaling-title">📈 How it scales, measured</h2>
+        <p class="mk-section-header-desc">One operation, timed while its input grows: deeper paths, longer lists, more subscribers. A path is parsed and walked segment by segment, a write copies each object and array on its path, and a commit visits every subscriber. So each cost grows with what it touches and with nothing else; the charts show by how much. Persistence encodes the whole stored value on every write, so its cost follows the stored size: keep large, fast-changing lists out of persisted stores, or split them.</p>
+      </div>
+    </header>
+    <p class="ds-bench-meta" id="bench-meta">Loading the measurements…</p>
+    <div class="ds-bench-grid">
+      <figure class="chart-frame ds-bench" data-bench="depth">
+        <h3 class="chart-title">Deeper paths</h3>
+        <ul class="chart-dek ds-takeaways"></ul>
+        <div class="chart" role="img" aria-label="Log-log line chart of time per operation against path depth"></div>
+        <figcaption class="chart-source"><code>store.get(path)</code> and <code>store.set(path, value)</code> on <code>child.child.….value</code>; both axes logarithmic.</figcaption>
+      </figure>
+      <figure class="chart-frame ds-bench" data-bench="length">
+        <h3 class="chart-title">Longer lists</h3>
+        <ul class="chart-dek ds-takeaways"></ul>
+        <div class="chart" role="img" aria-label="Log-log line chart of time per operation against list length"></div>
+        <figcaption class="chart-source">Reading and writing the last item of <code>{ items: [{ id, text }] }</code>, without and with persistence to memory storage.</figcaption>
+      </figure>
+      <figure class="chart-frame ds-bench" data-bench="subscribers">
+        <h3 class="chart-title">More subscribers</h3>
+        <ul class="chart-dek ds-takeaways"></ul>
+        <div class="chart" role="img" aria-label="Log-log line chart of time per commit against subscriber count"></div>
+        <figcaption class="chart-source">One <code>set()</code> with plain listeners (all called), and with selectors where one selection changes (all evaluated, one called).</figcaption>
+      </figure>
+    </div>
+    <div class="alert" role="alert" id="bench-charts-failed" hidden>
+      <svg class="alert-icon ds-icon" aria-hidden="true"><use href="#i-alert"/></svg>
+      <div class="alert-content">
+        <h5 class="alert-title">The charts did not load</h5>
+        <p class="alert-description">ECharts could not be fetched from jsDelivr. Every measurement is in the table below.</p>
+      </div>
+    </div>
+    <div class="accordion ds-accordion ds-bench-table">
+      <details class="accordion-item">
+        <summary class="accordion-trigger"><span>Every measurement as a table</span><svg class="accordion-chevron ds-icon" aria-hidden="true"><use href="#i-chevron"/></svg></summary>
+        <div class="accordion-content">
+          <div class="table-container">
+            <table class="table" id="bench-table">
+              <thead><tr class="table-row"><th class="table-head">Axis</th><th class="table-head">Operation</th><th class="table-head">Size</th><th class="table-head">Median</th><th class="table-head">Middle half of the timings</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+    </div>
+    <p class="ds-way-desc">Run it yourself: <code>make bench</code> builds, runs the fixed-size benchmarks and writes this scaling run to <code>output/bench-scaling.json</code>. The source is <a href="https://github.com/kyr0/defuss-store/blob/main/scripts/bench-scaling.ts" target="_blank" rel="noopener">scripts/bench-scaling.ts<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a>; the numbers describe the machine above, not yours.</p>
+  </section>
+
+  <section id="install" class="container ds-section parallax-reveal" aria-labelledby="install-title">
+    <div class="corner-leaf pattern-dots ds-use">
+    <header class="mk-section-header">
+      <div class="mk-section-header-copy">
+        <span class="mk-section-header-eyebrow">Install</span>
+        <h2 class="mk-section-header-title" id="install-title">🧑‍💻 Add it to your app</h2>
+        <p class="mk-section-header-desc">From npm, or as the one built file. Then persist a store, or hand one prompt to your coding agent.</p>
+      </div>
+    </header>
+    <div class="ds-ways">
+      <div class="ds-way">
+        <h3 class="ds-way-title"><svg class="ds-icon" aria-hidden="true"><use href="#i-package"/></svg>From npm</h3>
+        <p class="ds-way-desc">ESM with TypeScript declarations, for Node 22.12+ and modern browsers. Zero dependencies.</p>
+        <figure class="mk-code-block">
+          <div class="mk-code-block-head">
+            <div class="mk-code-block-tabs" role="radiogroup" aria-label="Package manager">
+              <label><input type="radio" name="cb-pm" value="npm" checked>npm</label><label><input type="radio" name="cb-pm" value="bun">bun</label><label><input type="radio" name="cb-pm" value="pnpm">pnpm</label>
+            </div>
+            <button class="mk-code-block-copy" type="button" aria-label="Copy code"><svg class="ds-icon" aria-hidden="true"><use href="#i-copy"/></svg></button>
+          </div>
+          <pre data-tab="npm"><code><span>npm install defuss-store</span></code></pre>
+          <pre data-tab="bun"><code><span>bun add defuss-store</span></code></pre>
+          <pre data-tab="pnpm"><code><span>pnpm add defuss-store</span></code></pre>
+          <span class="mk-code-block-status" role="status"></span>
+        </figure>
+      </div>
+      <div class="separator ds-sep-vertical" data-orientation="vertical" role="separator"></div>
+      <hr class="separator ds-sep-horizontal">
+      <div class="ds-way">
+        <h3 class="ds-way-title"><svg class="ds-icon" aria-hidden="true"><use href="#i-download"/></svg>One file</h3>
+        <p class="ds-way-desc"><code>dist/browser.js</code> bundles every layer and imports nothing, so it runs as a plain browser module. This site serves a byte-for-byte copy of it.</p>
+        <div class="ds-download">
+          <a class="btn" href="assets/defuss-store/browser.js" download="defuss-store.js"><svg class="ds-icon" aria-hidden="true"><use href="#i-download"/></svg>defuss-store.js</a>
+          <span class="badge" data-variant="outline"><span data-stat="browser.artifactBytes" data-unit="B">22,421 B</span> · ESM</span>
+        </div>
+        <figure class="mk-code-block" data-variant="file">
+          <div class="mk-code-block-head"><span class="mk-code-block-file"><svg class="ds-icon" aria-hidden="true"><use href="#i-link"/></svg>jsDelivr</span><button class="mk-code-block-copy" type="button" aria-label="Copy code"><svg class="ds-icon" aria-hidden="true"><use href="#i-copy"/></svg></button></div>
+          <pre><code><span>https://cdn.jsdelivr.net/npm/defuss-store@0.1.0/dist/browser.min.js</span></code></pre>
+          <span class="mk-code-block-status" role="status"></span>
+        </figure>
+      </div>
+    </div>
+
+    <div class="ds-usage">
+      <h3 class="ds-way-title"><svg class="ds-icon" aria-hidden="true"><use href="#i-terminal"/></svg>Persist what matters</h3>
+      <p class="ds-way-desc">A store per concern; persistence only where a reload must not lose anything. The validator is yours - it decides what may enter storage and what may come back out.</p>
+      <figure class="mk-code-block" data-variant="file">
+        <div class="mk-code-block-head">
+          <div class="mk-code-block-tabs" role="radiogroup" aria-label="Example">
+            <label><input type="radio" name="cb-use" value="migrate" checked>Versions and migration</label><label><input type="radio" name="cb-use" value="derive">Selectors and computed</label><label><input type="radio" name="cb-use" value="server">On the server</label>
+          </div>
+          <button class="mk-code-block-copy" type="button" aria-label="Copy code"><svg class="ds-icon" aria-hidden="true"><use href="#i-copy"/></svg></button>
+        </div>
+        <pre data-tab="migrate" data-numbers><code><span><span class="mk-code-block-k">import</span> { createStore } <span class="mk-code-block-k">from</span> <span class="mk-code-block-s">'defuss-store'</span>;</span><span><span class="mk-code-block-k">import</span> { createMemoryStorage, createWebStorage } <span class="mk-code-block-k">from</span> <span class="mk-code-block-s">'defuss-store/storage'</span>;</span><span><span class="mk-code-block-k">import</span> { attachPersistence } <span class="mk-code-block-k">from</span> <span class="mk-code-block-s">'defuss-store/persist'</span>;</span><span></span><span><span class="mk-code-block-c">// v1 stored { dark: boolean }; v2 stores { theme: 'light' | 'dark' | 'system' }.</span></span><span><span class="mk-code-block-k">type</span> Settings = { theme: <span class="mk-code-block-s">'light'</span> | <span class="mk-code-block-s">'dark'</span> | <span class="mk-code-block-s">'system'</span> };</span><span><span class="mk-code-block-k">const</span> isSettings = (v: unknown): v <span class="mk-code-block-k">is</span> Settings =&gt;</span><span>  [<span class="mk-code-block-s">'light'</span>, <span class="mk-code-block-s">'dark'</span>, <span class="mk-code-block-s">'system'</span>].includes((v <span class="mk-code-block-k">as</span> Partial&lt;Settings&gt; | <span class="mk-code-block-k">null</span>)?.theme <span class="mk-code-block-k">as</span> string);</span><span></span><span><span class="mk-code-block-k">const</span> settings = createStore&lt;Settings&gt;({ theme: <span class="mk-code-block-s">'system'</span> });</span><span><span class="mk-code-block-k">const</span> persistence = attachPersistence(settings, {</span><span>  key: <span class="mk-code-block-s">'my-app:settings'</span>, version: 2, validate: isSettings,</span><span>  storage: createWebStorage(<span class="mk-code-block-s">'local'</span>, { fallback: createMemoryStorage() }),</span><span>  migrate: (old, fromVersion) =&gt; fromVersion === 1 &amp;&amp; (old <span class="mk-code-block-k">as</span> { dark?: unknown }).dark === <span class="mk-code-block-k">true</span></span><span>    ? { theme: <span class="mk-code-block-s">'dark'</span> } : { theme: <span class="mk-code-block-s">'system'</span> },</span><span>  sync: <span class="mk-code-block-k">true</span>,</span><span>  onError: (failure) =&gt; console.warn(failure.operation, failure.error),</span><span>});</span><span></span><span>persistence.status(); <span class="mk-code-block-c">// { phase: 'active', dirty: true, hasStoredValue: true } after a v1 → v2 migration</span></span></code></pre>
+        <pre data-tab="derive" data-numbers><code><span><span class="mk-code-block-k">import</span> { computed, createStore, jsonEquals } <span class="mk-code-block-k">from</span> <span class="mk-code-block-s">'defuss-store'</span>;</span><span></span><span><span class="mk-code-block-k">const</span> cart = createStore({ items: [{ sku: <span class="mk-code-block-s">'a'</span>, qty: 1, price: 12 }], coupon: <span class="mk-code-block-s">''</span> });</span><span><span class="mk-code-block-k">const</span> total = computed(cart, (c) =&gt; c.items.reduce((sum, i) =&gt; sum + i.qty * i.price, 0));</span><span></span><span><span class="mk-code-block-c">// A selector listener runs only when its selection changes.</span></span><span>cart.subscribe((c) =&gt; c.items.length, (count) =&gt; console.log(<span class="mk-code-block-s">'items'</span>, count));</span><span><span class="mk-code-block-c">// Object selections need an explicit equality.</span></span><span>cart.subscribe((c) =&gt; ({ coupon: c.coupon }), (s) =&gt; console.log(s.coupon), { equals: jsonEquals });</span><span></span><span>cart.set(<span class="mk-code-block-s">'items[0].qty'</span>, 3);  <span class="mk-code-block-c">// copies items and items[0]; coupon keeps its reference</span></span><span>total.value;                    <span class="mk-code-block-c">// 36</span></span><span>cart.remove(<span class="mk-code-block-s">'items[0]'</span>);        <span class="mk-code-block-c">// splices the array → 'items' 0</span></span></code></pre>
+        <pre data-tab="server" data-numbers><code><span><span class="mk-code-block-k">import</span> { computed, createStore } <span class="mk-code-block-k">from</span> <span class="mk-code-block-s">'defuss-store'</span>;</span><span></span><span><span class="mk-code-block-c">// Importing defuss-store touches no window, document or storage, so server code can share modules with the client.</span></span><span><span class="mk-code-block-k">export function</span> renderGreeting(user: { name: string; unread: number }) {</span><span>  <span class="mk-code-block-c">// One store per request: never export a mutable user store from a module.</span></span><span>  <span class="mk-code-block-k">const</span> session = createStore(user);</span><span>  <span class="mk-code-block-k">const</span> label = computed(session, (s) =&gt; `${s.name}: ${s.unread} unread`);</span><span>  <span class="mk-code-block-k">const</span> text = label.value;</span><span>  session.destroy(); <span class="mk-code-block-c">// also destroys the computed store</span></span><span>  <span class="mk-code-block-k">return</span> text;</span><span>}</span></code></pre>
+        <span class="mk-code-block-status" role="status"></span>
+      </figure>
+    </div>
+
+    <hr class="separator ds-sep-wide">
+    <div class="ds-way ds-way-agent">
+      <h3 class="ds-way-title"><svg class="ds-icon" aria-hidden="true"><use href="#i-bot"/></svg>Vibe coding</h3>
+      <p class="ds-way-desc">Paste this prompt into your coding agent. It links the repository, so the agent works from the current README and ARCH.md.</p>
+      <div class="ds-prompt">
+        <div class="mockup-code" data-chrome="mac" data-title="coding agent · ~/your-app" data-wrap id="agent-prompt">
+          <pre data-prefix=">"><code>Integrate defuss-store into this app: https://github.com/kyr0/defuss-store</code></pre>
+          <pre data-prefix=""><code>Read its README.md and ARCH.md first. Install it with npm install defuss-store (ESM, zero dependencies, Node 22.12+).</code></pre>
+          <pre data-prefix=""><code>Keep one store per concern with createStore(). Write with set(path, value), update(fn) or remove(path); never mutate a snapshot in place.</code></pre>
+          <pre data-prefix=""><code>Persist only what must survive a reload: attachPersistence() with a key, a schema version, a real validate() for the stored shape and createWebStorage('local', { fallback: createMemoryStorage() }); add sync: true where tabs must agree.</code></pre>
+          <pre data-prefix=""><code>Bind defuss-shadcn components with bindState() or their el.store. On the server, create stores per request.</code></pre>
+          <pre data-prefix="" data-tone="muted" data-cursor><code>⏎ send</code></pre>
+        </div>
+        <button type="button" class="btn ds-prompt-copy" data-variant="secondary" data-size="sm" id="copy-prompt"><svg class="ds-icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy prompt</span></button>
+        <span class="sr-only" role="status" id="copy-prompt-status"></span>
+      </div>
+      <p class="ds-way-desc">Give your agent the defuss-vae skills too: it then plans, tests and reviews against a verifier instead of declaring itself done. In Claude Code, the plugin adds the commit and Stop-hook gate. Needs <code>python3</code> ≥ 3.9, <code>git</code> and <code>make</code>.</p>
+      <figure class="mk-code-block" id="vae-install">
+        <div class="mk-code-block-head">
+          <div class="mk-code-block-tabs" role="radiogroup" aria-label="Agent">
+            <label><input type="radio" name="cb-vae" value="skills" checked>Any agent</label><label><input type="radio" name="cb-vae" value="claude">Claude Code plugin</label>
+          </div>
+          <button class="mk-code-block-copy" type="button" aria-label="Copy code"><svg class="ds-icon" aria-hidden="true"><use href="#i-copy"/></svg></button>
+        </div>
+        <pre data-tab="skills"><code><span>npx skills add kyr0/defuss-vae --skill '*'</span></code></pre>
+        <pre data-tab="claude"><code><span>claude plugin marketplace add kyr0/defuss-vae</span><span>claude plugin install defuss-vae@defuss-vae</span></code></pre>
+        <span class="mk-code-block-status" role="status"></span>
+      </figure>
+    </div>
+    </div>
+  </section>
+
+  <div class="container ds-section parallax-reveal" data-reveal="zoom">
+    <div class="corner-leaf ds-consult">
+      <section class="mk-cta" data-variant="split" aria-labelledby="vae-title">
+        <div class="mk-cta-inner">
+          <div class="mk-cta-copy">
+            <div class="ds-cta-head">
+              <div class="aura aura-glow aura-gold ds-cta-portrait" style="--shape-round:1.25rem"><img class="shape-squircle" src="assets/aron-homberg.jpg" width="400" height="400" alt="Portrait of Aron Homberg" loading="lazy"></div>
+              <h2 class="mk-cta-title" id="vae-title">Stressed with inconsistent results and tiring reviews?</h2>
+            </div>
+            <p class="mk-cta-desc">Build more consistent agents with <a href="https://github.com/kyr0/defuss-vae" target="_blank" rel="noopener"><strong>defuss-vae</strong><svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a>, Aron Homberg’s <a href="https://vae.defuss.org/" target="_blank" rel="noopener"><strong>Verified Agentic Engineering</strong><svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a> method. Aron is a freelance AI researcher, O’Reilly author (2011), conference speaker, and longtime mentor to software engineering teams.</p>
+          </div>
+          <div class="mk-cta-actions ds-consult-actions">
+            <a class="btn" data-size="lg" href="https://www.linkedin.com/in/aronhomberg/" target="_blank" rel="noopener"><svg class="ds-icon ds-icon-fill" aria-hidden="true"><use href="#i-linkedin"/></svg>Talk to Aron on LinkedIn<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a>
+            <p class="mk-cta-note ds-consult-note">...if you're looking for a remote training or mentoring session for you or your engineering team.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="container ds-section parallax-reveal" data-reveal="zoom">
+    <section class="mk-cta" data-variant="dark" aria-labelledby="cta-title">
+      <div class="mk-cta-inner">
+        <div class="mk-cta-copy">
+          <h2 class="mk-cta-title" id="cta-title">Keep the state your users typed</h2>
+          <p class="mk-cta-desc">Synchronous stores, validated persistence that never overwrites what it cannot read, and bindings for every defuss-shadcn component - without a dependency.</p>
+        </div>
+        <div class="mk-cta-actions">
+          <a class="btn" data-size="lg" href="https://github.com/kyr0/defuss-store" target="_blank" rel="noopener">View on GitHub<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a>
+          <a class="btn" data-variant="outline" data-size="lg" href="#demo">Try the demo again</a>
+        </div>
+        <p class="mk-cta-note">MIT licensed · <span data-version>v0.1.0</span> · zero runtime dependencies</p>
+      </div>
+    </section>
+  </div>
+
+  </main>
+
+  <footer class="mk-footer" style="width:100%">
+    <div class="mk-footer-inner">
+      <nav class="mk-footer-nav ds-footer-nav" aria-label="Footer">
+        <div class="mk-footer-col">
+          <h3 class="mk-footer-heading">Project</h3>
+          <ul class="mk-footer-list">
+            <li><a href="https://github.com/kyr0/defuss-store" target="_blank" rel="noopener">Source code<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a></li>
+            <li><a href="https://github.com/kyr0/defuss-store/blob/main/README.md" target="_blank" rel="noopener">README<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a></li>
+            <li><a href="https://github.com/kyr0/defuss-store/blob/main/ARCH.md" target="_blank" rel="noopener">Architecture<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a></li>
+            <li><a href="https://www.npmjs.com/package/defuss-store" target="_blank" rel="noopener">npm<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a></li>
+          </ul>
+        </div>
+        <div class="mk-footer-col">
+          <h3 class="mk-footer-heading">This page</h3>
+          <ul class="mk-footer-list">
+            <li><a href="#demo">Live demo</a></li>
+            <li><a href="#how">How it works</a></li>
+            <li><a href="#defuss">With or without defuss</a></li>
+            <li><a href="#api">API</a></li>
+            <li><a href="#scaling">How it scales</a></li>
+          </ul>
+        </div>
+        <div class="mk-footer-col">
+          <h3 class="mk-footer-heading">Works with</h3>
+          <ul class="mk-footer-list">
+            <li><a href="https://github.com/kyr0/defuss-shadcn" target="_blank" rel="noopener">defuss-shadcn<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a></li>
+            <li><a href="https://www.npmjs.com/package/defuss" target="_blank" rel="noopener">defuss<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a></li>
+            <li><a href="https://dom-router.defuss.org/" target="_blank" rel="noopener">defuss-dom-router<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a></li>
+          </ul>
+        </div>
+        <div class="mk-footer-col">
+          <h3 class="mk-footer-heading">Professional consulting services</h3>
+          <aside class="corner-leaf ds-ad" aria-label="Consulting by Aron Homberg">
+            <div class="ds-ad-head">
+              <div class="aura aura-glow aura-gold ds-ad-portrait" style="--shape-round:1.5rem"><img class="shape-squircle" src="assets/aron-homberg.jpg" width="400" height="400" alt="Portrait of Aron Homberg" loading="lazy"></div>
+              <div>
+                <p class="ds-ad-name">Aron Homberg</p>
+                <p class="ds-ad-role">Freelance computer science expert · independent AI researcher</p>
+              </div>
+            </div>
+            <a class="btn" data-size="sm" href="https://www.linkedin.com/in/aronhomberg/" target="_blank" rel="noopener"><svg class="ds-icon ds-icon-fill" aria-hidden="true"><use href="#i-linkedin"/></svg>Connect on LinkedIn<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a>
+          </aside>
+        </div>
+      </nav>
+      <hr class="separator mk-footer-rule">
+      <div class="mk-footer-bottom">
+        <a href="#top" class="mk-footer-brand" aria-label="Back to the top"><svg class="ds-icon" aria-hidden="true"><use href="#i-logo"/></svg><span class="mk-footer-brand-name">defuss-store</span></a>
+        <div class="mk-footer-meta">
+          <p class="mk-footer-copy">© 2026 <a href="https://www.linkedin.com/in/aronhomberg/" target="_blank" rel="noopener">Aron Homberg (kyr0)<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a> · MIT. Built with <a href="https://github.com/kyr0/defuss-shadcn" target="_blank" rel="noopener">defuss-shadcn<svg class="ds-icon ds-ext" aria-hidden="true"><use href="#i-external"/></svg><span class="sr-only"> (opens in a new tab)</span></a>.</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+</div>
+<div class="fab" data-scroll-top>
+  <a class="btn fab-trigger" href="#top" aria-label="Back to top"><span class="fab-icon" aria-hidden="true"><svg class="ds-icon"><use href="#i-arrow-up"/></svg></span></a>
+</div>
+
+<script type="module" src="https://cdn.jsdelivr.net/npm/defuss-shadcn@0.9.8/dist/components/all.min.js" integrity="sha384-Lk87A4KViuU62PT7Hy5Qw2DHzw0iEtvi2huW/2h9963U/cZLBARdRf7LZMCsirTa" crossorigin="anonymous"></script>
+<script type="module" src="assets/site.js"></script>
+</body>
+</html>

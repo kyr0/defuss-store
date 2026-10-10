@@ -22,6 +22,8 @@ jobs:
           cache: npm
       - run: make setup
       - run: make verify
+      # GitHub Pages serves the committed docs/; the build's bundle copy in it must already be committed.
+      - run: git diff --exit-code -- docs/
       - uses: actions/upload-artifact@v4
         if: always()
         with:

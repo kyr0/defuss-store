@@ -1,0 +1,112 @@
+/* Demo app layout. Colours, radii, shadows and fonts come from defuss-shadcn tokens; only the sticky-note paper has
+   literal colours, because the theme has no paper token. */
+@layer components {
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; line-height: 1.55; background: var(--background); color: var(--foreground); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+  [hidden] { display: none !important; }
+  code { font-family: var(--font-mono); font-size: .875em; }
+  /* a call inside an already monospace heading keeps its size */
+  .ds-dt-heading code { font-size: inherit; }
+  .ds-icon { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* the frame: demos in the center, devtools east (south on phones) */
+  .ds-app { height: 100dvh; }
+  .ds-center { display: flex; flex-direction: column; gap: 1rem; min-width: 0; min-height: 0; padding: 1rem clamp(1rem, 2.5vw, 1.75rem) 1.25rem; overflow-y: auto; }
+  .ds-app-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1rem; }
+  .ds-brand { display: inline-flex; align-items: center; gap: .5rem; font-weight: 700; color: inherit; text-decoration: none; }
+  .ds-brand .ds-icon { color: var(--chart-2); }
+  .ds-brand-sub { font-weight: 400; color: var(--muted-foreground); }
+  .ds-app-hint { margin: 0; font-size: .8125rem; color: var(--muted-foreground); }
+  #memory-only { margin: 0; }
+
+  /* tabs: icon, title and a one-line claim per demo (the defuss-vectorsearch tab look) */
+  .ds-tabs { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .ds-tabs .tab-list { max-width: 100%; overflow-x: auto; margin-block-end: 1rem; }
+  .ds-tab { display: flex; align-items: center; gap: .625rem; height: auto; padding-block: .5rem; text-align: start; white-space: normal; overflow: visible; }
+  .ds-tab-icon { width: 1.5rem; height: 1.5rem; }
+  .ds-tab-title { display: block; font-weight: 600; line-height: 1.25; }
+  .ds-tab-desc { display: block; font-size: .75rem; font-weight: 400; line-height: 1.3; color: var(--muted-foreground); }
+  .ds-panel { display: flex; flex-direction: column; gap: 1.25rem; flex: 1; min-height: 0; }
+
+  .ds-demo-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: .75rem 1.5rem; }
+  .ds-demo-copy { flex: 1 1 22rem; min-width: 0; }
+  .ds-demo-title { margin: 0 0 .25rem; font-size: 1.25rem; font-weight: 700; letter-spacing: -.01em; }
+  .ds-demo-desc { margin: 0; max-width: 44rem; font-size: .875rem; color: var(--muted-foreground); text-wrap: pretty; }
+  .ds-demo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+
+  /* form */
+  .ds-form { max-width: 40rem; }
+  .ds-form-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); }
+
+  /* chat */
+  .ds-session { flex: 1; min-height: 20rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); }
+
+  /* notes: yellow sticky notes, styled after the defuss-vectorsearch notes board */
+  .ds-board-head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; }
+  .ds-board-title { display: flex; align-items: center; gap: .5rem; margin: 0 auto 0 0; font-size: 1rem; font-weight: 600; }
+  .ds-notes-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: .5rem .25rem 1rem; }
+  .ds-notes { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr)); }
+  .ds-notes:empty { display: none; }
+  .ds-note {
+    --ds-note-paper: oklch(0.95 0.12 100); --ds-note-ink: oklch(0.28 0.04 85);
+    position: relative; display: flex; flex-direction: column; gap: .375rem; padding: .625rem .875rem .625rem;
+    background: var(--ds-note-paper); color: var(--ds-note-ink); border-radius: 2px 2px 1.25rem 2px;
+    box-shadow: var(--shadow-md); rotate: -.6deg; overflow: hidden;
+  }
+  .ds-note:nth-child(even) { rotate: .5deg; }
+  .ds-note:focus-within { outline: 2px solid oklch(0.62 0.15 80); outline-offset: 2px; }
+  .ds-note-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+  .ds-note-label { font-size: .75rem; font-weight: 600; letter-spacing: .02em; opacity: .7; }
+  .ds-note .ds-note-delete { color: inherit; opacity: .65; }
+  .ds-note .ds-note-delete:hover, .ds-note .ds-note-delete:focus-visible { opacity: 1; background: oklch(0.28 0.04 85 / .08); }
+  .ds-note .textarea { min-height: 6.5rem; padding: 0; border: 0; background: transparent; color: inherit; box-shadow: none; resize: vertical; font-size: .9375rem; line-height: 1.5; }
+  .ds-note .textarea:focus-visible { outline: none; box-shadow: none; }
+  .ds-note .textarea::placeholder { color: color-mix(in oklch, var(--ds-note-ink) 50%, transparent); }
+  .ds-note-status { min-height: 1.25rem; margin: 0; font-family: var(--font-mono); font-size: .6875rem; opacity: .75; }
+
+  /* devtools */
+  .ds-devtools { min-width: 0; }
+  .ds-dt { display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; overscroll-behavior: contain; }
+  .ds-dt-sub { margin: 0; font-size: .75rem; color: var(--muted-foreground); }
+  .ds-dt-filter { display: flex; align-items: center; gap: .625rem; }
+  .ds-dt-filter .select { flex: 1; min-width: 0; }
+  .ds-dt-section { display: flex; flex-direction: column; gap: .5rem; min-width: 0; }
+  .ds-dt-heading { margin: 0; font-family: var(--font-mono); font-size: .75rem; font-weight: 600; color: var(--muted-foreground); }
+  .ds-log { margin: 0; max-height: 18rem; overflow-y: auto; font-size: .75rem; }
+  .ds-log:empty::after { content: "No changes yet - type in a demo."; display: block; padding: .75rem 1rem; color: var(--muted-foreground); font-family: var(--font-sans); }
+  .ds-log-time { opacity: .6; }
+  .ds-log-store { font-weight: 600; }
+  .ds-snapshot-wrap { max-height: 14rem; border-radius: var(--radius-md); background: var(--muted); }
+  .ds-snapshot { margin: 0; padding: .75rem; font-family: var(--font-mono); font-size: .75rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+  /* JSON highlighting: literal hues (the theme has no syntax tokens), each at least 4.5:1 on --muted in its mode
+     (light 4.6-7.0, dark 7.8-9.8); punctuation keeps the text colour */
+  .ds-json-key { color: #0550ae; }
+  .ds-json-string { color: #116329; }
+  .ds-json-number { color: #953800; }
+  .ds-json-literal { color: #8250df; }
+  .dark .ds-json-key { color: #79c0ff; }
+  .dark .ds-json-string { color: #7ee787; }
+  .dark .ds-json-number { color: #ffa657; }
+  .dark .ds-json-literal { color: #d2a8ff; }
+  .ds-dl { display: grid; gap: .25rem; margin: 0; }
+  .ds-dl > div { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: .5rem; align-items: baseline; }
+  .ds-dl dt { font-size: .75rem; color: var(--muted-foreground); }
+  .ds-dl dd { margin: 0; font-family: var(--font-mono); font-size: .75rem; overflow-wrap: anywhere; }
+  .ds-dt-actions { display: flex; flex-wrap: wrap; gap: .375rem; }
+
+  /* Get / Set state dialog */
+  .ds-state-body { display: flex; flex-direction: column; gap: .5rem; }
+  .ds-json { font-family: var(--font-mono); font-size: .8125rem; }
+  .ds-call { padding: .05em .3em; border-radius: var(--radius-sm); background: var(--muted); color: var(--foreground); }
+  #state-error { margin: 0; }
+
+  @media (max-width: 48rem) {
+    .ds-tab-desc { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ds-note, .ds-note:nth-child(even) { rotate: none; }
+  }
+  @media (forced-colors: active) {
+    .ds-note { border: 1px solid CanvasText; }
+  }
+}
