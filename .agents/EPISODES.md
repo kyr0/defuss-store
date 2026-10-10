@@ -52,3 +52,8 @@ A lesson recurring ≥2 → test | .agents/VERIFY.py rule | MEMORY line, then de
 2026-10-10T15:49:13Z s=1956eb00 DONE fp=decbb9f4708e cov=98.2% paths=.github/workflows/verify.yml,.oxlintrc.json,ARCH.md,CHANGELOG.md(+30)
 2026-10-10T15:49:13Z s=1956eb00 FINDING docs/index.html Without defuss card learn=none: copy decision by the human
 2026-10-10T15:49:13Z s=1956eb00 FINDING docs/index.html header npm link learn=test: docs e2e asserts the npm link's href
+2026-10-10T15:55:43Z s=1956eb00 DONE fp=7b4183425d48 cov=98.2% paths=.github/workflows/ci.yml,.github/workflows/verify.yml,.oxlintrc.json,AGENTS.md(+35)
+2026-10-10T15:55:43Z s=1956eb00 FINDING docs/CNAME (merge into main) learn=none: one-off merge resolution; GitHub owns the CNAME bytes it writes
+2026-10-10T15:55:43Z s=1956eb00 FINDING 6fce291 paths new to this review (src/types.ts, tests/types/api.ts, scripts/clean.ts, AGENTS.md, .github/workflows/ci.yml → verify.yml) learn=test: tests/types/api.ts type regression; make verify
+2026-10-10T15:57:31Z s=1956eb00 DONE fp=decbb9f4708e cov=98.2% paths=.github/workflows/verify.yml,.oxlintrc.json,ARCH.md,CHANGELOG.md(+30)
+2026-10-10T15:57:31Z s=1956eb00 FINDING main@9348592 (merge commit) learn=none: re-attestation of an unchanged, already reviewed fingerprint after a merge
